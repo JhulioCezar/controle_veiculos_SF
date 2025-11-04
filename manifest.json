@@ -1,0 +1,22 @@
+{
+  "name": "Checklist de Veículos - Sem Fronteiras",
+  "short_name": "Checklist",
+  "description": "Aplicativo de checklist de veículos para controle e quilometragem.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f7f7f7",
+  "theme_color": "#2b6cb0",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://i.imgur.com/kpxfI4r.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://i.imgur.com/t1A2m5q.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
