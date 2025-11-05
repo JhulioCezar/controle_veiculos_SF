@@ -8,6 +8,13 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2b6cb0">
 
+  <!-- 🔥 ADICIONANDO BIBLIOTECA PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <!-- 🔥 ADICIONANDO SUPABASE -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -80,6 +87,22 @@
       border: 2px dashed #aaa;
       height: 150px;
       background-color: white;
+      border-radius: 6px;
+    }
+    .loading-pdf {
+      display: none;
+      text-align: center;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      margin: 10px 0;
+    }
+    #fotoPreview {
+      max-width: 100%;
+      margin-top: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      display: none;
     }
   </style>
 </head>
@@ -133,7 +156,8 @@
       <input type="number" id="km" required>
 
       <label>Foto do Painel (KM):</label>
-      <input type="file" id="fotoPainel" accept="image/*" capture="environment" required>
+      <input type="file" id="fotoPainel" accept="image/*" capture="environment" required onchange="previewFoto(event)">
+      <img id="fotoPreview" src="" alt="Preview da foto do painel">
 
       <label>Assinatura Digital:</label>
       <canvas id="signature-pad"></canvas>
@@ -141,9 +165,17 @@
 
       <p id="nomeAssinatura" style="text-align:center;font-weight:bold;margin-top:10px;"></p>
 
+      <!-- 🔥 ADICIONANDO LOADING DO PDF -->
+      <div id="loadingPDF" class="loading-pdf">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Gerando PDF...</span>
+        </div>
+        <p class="mt-2">Gerando PDF, aguarde...</p>
+      </div>
+
       <button type="button" class="btn-secondary" onclick="voltarInicio()">Voltar</button>
       <button type="button" class="btn-clear" onclick="limparFormulario()">Limpar Formulário</button>
-      <button type="submit">Gerar e Enviar</button>
+      <button type="button" onclick="gerarESalvarPDF()">Gerar e Salvar PDF</button>
     </form>
   </div>
 
@@ -164,7 +196,19 @@
       moto: []
     };
 
-    // ---------- FUNÇÕES ----------
+    // ---------- VARIÁVEIS GLOBAIS ----------
+    let fotoPainelDataURL = null;
+    let signaturePad, ctx, desenhando = false;
+
+    // ========== SUPABASE CONFIGURAÇÃO ==========
+    // 🔥 SUBSTITUA COM SUAS CREDENCIAIS REAIS DO SUPABASE!
+    const SUPABASE_URL = 'https://seu-projeto.supabase.co'; // Cole sua URL aqui
+    const SUPABASE_ANON_KEY = 'sua-chave-anon-public'; // Cole sua chave aqui
+
+    // Inicializar Supabase
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ---------- FUNÇÕES DO SISTEMA ----------
     function carregarVeiculos() {
       const tipo = document.getElementById("tipoVeiculo").value;
       const selectVeiculo = document.getElementById("veiculo");
@@ -192,7 +236,7 @@
         return;
       }
       
-      // 🔥 ATUALIZAR DATA/HORA NO MOMENTO DA SELEÇÃO
+      // ATUALIZAR DATA/HORA NO MOMENTO DA SELEÇÃO
       atualizarDataHora();
       
       document.getElementById("step-selection").style.display = "none";
@@ -207,20 +251,37 @@
       document.getElementById("formulario").style.display = "none";
       document.getElementById("step-selection").style.display = "block";
       limparAssinatura();
+      fotoPainelDataURL = null;
+      document.getElementById('fotoPreview').style.display = 'none';
     }
 
     function limparFormulario() {
       if (confirm("Deseja limpar todos os campos?")) {
         document.getElementById("formulario").reset();
-        // 🔥 ATUALIZAR DATA/HORA AO LIMPAR FORMULÁRIO
+        // ATUALIZAR DATA/HORA AO LIMPAR FORMULÁRIO
         atualizarDataHora();
         limparAssinatura();
+        fotoPainelDataURL = null;
+        document.getElementById('fotoPreview').style.display = 'none';
       }
     }
 
-    // ---------- ASSINATURA DIGITAL CORRIGIDA ----------
-    let signaturePad, ctx, desenhando = false;
+    // ---------- PREVIEW DA FOTO ----------
+    function previewFoto(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          fotoPainelDataURL = e.target.result;
+          const preview = document.getElementById('fotoPreview');
+          preview.src = fotoPainelDataURL;
+          preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
 
+    // ---------- ASSINATURA DIGITAL ----------
     function inicializarAssinatura() {
       signaturePad = document.getElementById("signature-pad");
       ctx = signaturePad.getContext("2d");
@@ -318,21 +379,273 @@
       document.getElementById("nomeAssinatura").textContent = e.target.value;
     });
 
-    document.getElementById("formulario").addEventListener("submit", e => {
-      e.preventDefault();
+    // ========== FUNÇÕES SUPABASE ==========
+    // Função para fazer upload de imagens
+    async function uploadImagem(file, pasta, nomeArquivo) {
+      try {
+        console.log('Fazendo upload:', nomeArquivo);
+        
+        const { data, error } = await supabase.storage
+          .from('checklists')
+          .upload(`${pasta}/${nomeArquivo}`, file);
+        
+        if (error) {
+          console.error('Erro no upload:', error);
+          throw error;
+        }
+        
+        // Obter URL pública da imagem
+        const { data: urlData } = supabase.storage
+          .from('checklists')
+          .getPublicUrl(data.path);
+        
+        console.log('Upload realizado:', urlData.publicUrl);
+        return urlData.publicUrl;
+      } catch (error) {
+        console.error('Erro no upload:', error);
+        return null;
+      }
+    }
+
+    // Função para salvar dados no banco
+    async function salvarChecklist(dados) {
+      try {
+        console.log('Salvando no banco:', dados);
+        
+        const { data, error } = await supabase
+          .from('checklists')
+          .insert([dados]);
+        
+        if (error) {
+          console.error('Erro ao salvar:', error);
+          throw error;
+        }
+        
+        console.log('Dados salvos com sucesso:', data);
+        return data;
+      } catch (error) {
+        console.error('Erro ao salvar no banco:', error);
+        return null;
+      }
+    }
+
+    // Converter assinatura (DataURL) para arquivo (Blob)
+    function dataURLtoBlob(dataURL) {
+      const arr = dataURL.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      
+      return new Blob([u8arr], { type: mime });
+    }
+
+    // 🔥 FUNÇÃO AUXILIAR: VERIFICAR SE A ASSINATURA ESTÁ EM BRANCO
+    function signaturePadBlank() {
+        if (!ctx) return true;
+        
+        const imageData = ctx.getImageData(0, 0, signaturePad.width, signaturePad.height).data;
+        for (let i = 0; i < imageData.length; i += 4) {
+            if (imageData[i + 3] !== 0) return false;
+        }
+        return true;
+    }
+
+    // 🔥 FUNÇÃO ATUALIZADA: GERAR PDF + SALVAR NO SUPABASE
+    async function gerarESalvarPDF() {
       const campos = document.querySelectorAll("#formulario [required]");
       for (const campo of campos) {
         if (!campo.value) {
-          alert("Preencha todos os campos obrigatórios antes de enviar!");
+          alert("Preencha todos os campos obrigatórios antes de gerar o PDF!");
           return;
         }
       }
       
-      // 🔥 ATUALIZAR DATA/HORA FINAL ANTES DO ENVIO
+      // Verificar se a foto foi capturada
+      if (!fotoPainelDataURL) {
+        alert("Por favor, capture a foto do painel antes de gerar o PDF!");
+        return;
+      }
+      
+      // ATUALIZAR DATA/HORA FINAL ANTES DO PDF
       atualizarDataHora();
       
-      alert("Formulário pronto para envio! (Integração com Google Sheets será adicionada a seguir.)");
-    });
+      // Mostrar loading
+      document.getElementById('loadingPDF').style.display = 'block';
+      
+      try {
+        // Usar a biblioteca jsPDF
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Dados do formulário
+        const tipoRota = document.getElementById('rotaTipo').value;
+        const data = document.getElementById('dataAtual').value;
+        const hora = document.getElementById('horaAtual').value;
+        const colaborador = document.getElementById('colaborador').value;
+        const tipoVeiculo = document.getElementById('tipoVeiculo').value;
+        const veiculo = document.getElementById('veiculo').value;
+        const placa = document.getElementById('placa').value;
+        const km = document.getElementById('km').value;
+        
+        // CONFIGURAÇÕES DE LAYOUT
+        const margin = 20;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const contentWidth = pageWidth - (margin * 2);
+        let yPos = margin;
+        
+        // --- CABEÇALHO APENAS COM LOGOMARCA ---
+        const logoUrl = 'https://i.imgur.com/SEr4lkm.png';
+        
+        // Adicionar logomarca centralizada
+        doc.addImage(logoUrl, 'PNG', pageWidth / 2 - 40, yPos, 80, 30);
+        yPos += 40;
+        
+        // Título principal
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('Controle de Uso de Veículos', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 20;
+        
+        // --- SEÇÃO DE DADOS ---
+        doc.setFontSize(11);
+        
+        // Função para adicionar campo
+        function adicionarCampo(rotulo, valor, y) {
+            // Label
+            doc.setFont(undefined, 'bold');
+            doc.text(rotulo, margin, y);
+            
+            // Valor
+            doc.setFont(undefined, 'normal');
+            doc.text(valor.toString(), margin, y + 6);
+            
+            // Linha divisória
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.5);
+            doc.line(margin, y + 10, pageWidth - margin, y + 10);
+            
+            return y + 15;
+        }
+        
+        // Adicionar campos com linhas divisórias
+        yPos = adicionarCampo('Data:', data, yPos);
+        yPos = adicionarCampo('Hora:', hora, yPos);
+        yPos = adicionarCampo('Colaborador:', colaborador, yPos);
+        yPos = adicionarCampo('Tipo de Veículo:', tipoVeiculo.charAt(0).toUpperCase() + tipoVeiculo.slice(1), yPos);
+        yPos = adicionarCampo('Veículo:', veiculo, yPos);
+        yPos = adicionarCampo('Placa:', placa, yPos);
+        yPos = adicionarCampo('Quilometragem:', km + ' km', yPos);
+        
+        yPos += 5;
+        
+        // --- FOTO DO PAINEL (TAMANHO REDUZIDO) ---
+        doc.setFont(undefined, 'bold');
+        doc.text('Foto do Painel (KM):', margin, yPos);
+        yPos += 8;
+        
+        // Imagem com tamanho reduzido
+        const imgWidth = 50;
+        const imgHeight = 50; // Altura fixa reduzida
+        
+        // Adicionar retângulo para a imagem
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        doc.rect(margin, yPos, imgWidth, imgHeight);
+        
+        // Adicionar a imagem redimensionada
+        const imgProps = doc.getImageProperties(fotoPainelDataURL);
+        const finalImgWidth = imgWidth - 4;
+        const finalImgHeight = imgHeight - 4;
+        
+        doc.addImage(fotoPainelDataURL, 'JPEG', margin + 2, yPos + 2, finalImgWidth, finalImgHeight);
+        
+        yPos += imgHeight + 15;
+        
+        // --- ASSINATURA DIGITAL ---
+        doc.setFont(undefined, 'bold');
+        doc.text('Assinatura Digital:', margin, yPos);
+        yPos += 8;
+        
+        // Adicionar retângulo para assinatura
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        const signatureHeight = 30;
+        doc.rect(margin, yPos, contentWidth, signatureHeight);
+        
+        // Adicionar assinatura se existir
+        const signatureDataURL = signaturePad.toDataURL();
+        if (signatureDataURL && !signaturePadBlank()) {
+            try {
+                const signatureProps = doc.getImageProperties(signatureDataURL);
+                const signatureWidth = contentWidth - 15;
+                const calcSignatureHeight = (signatureProps.height * signatureWidth) / signatureProps.width;
+                
+                // Ajustar altura para caber no retângulo
+                const finalSignatureHeight = Math.min(calcSignatureHeight, signatureHeight - 4);
+                
+                doc.addImage(signatureDataURL, 'PNG', margin + 5, yPos + 5, signatureWidth - 10, finalSignatureHeight);
+            } catch (e) {
+                console.log('Erro ao adicionar assinatura:', e);
+            }
+        }
+        
+        yPos += signatureHeight + 15;
+        
+        // --- NOME DO COLABORADOR ---
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(10);
+        doc.text(colaborador, margin, yPos);
+        
+        // ✅ AGORA SALVAR TUDO NO SUPABASE
+        const timestamp = new Date().getTime();
+        const fileName = `Checklist_${veiculo.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
+        
+        // 1. Fazer upload da foto do painel
+        const fotoFile = document.getElementById('fotoPainel').files[0];
+        const fotoUrl = await uploadImagem(fotoFile, 'fotos', `painel_${timestamp}.jpg`);
+        
+        // 2. Fazer upload da assinatura (se existir)
+        let assinaturaUrl = null;
+        if (signatureDataURL && !signaturePadBlank()) {
+            const signatureBlob = dataURLtoBlob(signatureDataURL);
+            assinaturaUrl = await uploadImagem(signatureBlob, 'assinaturas', `assinatura_${timestamp}.png`);
+        }
+        
+        // 3. Salvar todos os dados no banco
+        const dadosChecklist = {
+            tipo_rota: tipoRota === 'inicio' ? 'INÍCIO' : 'FINAL',
+            data: data,
+            hora: hora,
+            colaborador: colaborador,
+            tipo_veiculo: tipoVeiculo,
+            veiculo: veiculo,
+            placa: placa,
+            quilometragem: parseInt(km),
+            foto_painel_url: fotoUrl,
+            assinatura_url: assinaturaUrl
+        };
+        
+        await salvarChecklist(dadosChecklist);
+        
+        // 4. Salvar PDF localmente
+        doc.save(fileName);
+        
+        alert('✅ PDF gerado e todos os dados salvos no sistema!');
+        
+      } catch (error) {
+        console.error('Erro ao gerar PDF:', error);
+        alert('Erro ao gerar PDF. Tente novamente.');
+      } finally {
+        // Esconder loading
+        document.getElementById('loadingPDF').style.display = 'none';
+      }
+    }
 
     // Inicializar assinatura quando a página carrega
     window.addEventListener('load', function() {
