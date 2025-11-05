@@ -2,8 +2,8 @@
   "name": "Checklist de Veículos - Sem Fronteiras",
   "short_name": "Checklist SF",
   "description": "Sistema de controle e checklist para frota de veículos",
-  "start_url": "/controle_veiculos_SF/",
-  "scope": "/controle_veiculos_SF/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2b6cb0",
@@ -26,3 +26,4 @@
   ]
 
 }
+
