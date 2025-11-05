@@ -201,11 +201,28 @@
     let signaturePad, ctx, desenhando = false;
 
     // ========== SUPABASE CONFIGURAÇÃO ==========
-    const SUPABASE_URL = 'https://thkswytkcxscizlmyehr.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoa3N3eXRrY3hzY2l6bG15ZWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTU0MDMsImV4cCI6MjA3NzkzMTQwM30.u6PA4JtuKRTld2xQyUUq9n9YWAQf0uAQg-TS4x2na1c';
+let supabase; // 🔥 Mude para 'let' e inicialize depois
 
-    // Inicializar Supabase
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Função para inicializar o Supabase
+function inicializarSupabase() {
+    try {
+        const SUPABASE_URL = 'https://thkswytkcxscizlmyehr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoa3N3eXRrY3hzY2l6bG15ZWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTU0MDMsImV4cCI6MjA3NzkzMTQwM30.u6PA4JtuKRTld2xQyUUq9n9YWAQf0uAQg-TS4x2na1c';
+        
+        // 🔥 VERIFICAR SE A BIBLIOTECA SUPABASE FOI CARREGADA
+        if (typeof window.supabase !== 'undefined') {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Supabase inicializado com sucesso');
+            return true;
+        } else {
+            console.error('❌ Biblioteca Supabase não carregada');
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Erro ao inicializar Supabase:', error);
+        return false;
+    }
+}
 
     // ---------- FUNÇÕES DO SISTEMA ----------
     function carregarVeiculos() {
@@ -378,10 +395,18 @@
       document.getElementById("nomeAssinatura").textContent = e.target.value;
     });
 
-    // ========== FUNÇÕES SUPABASE ATUALIZADAS ==========
     // Função para fazer upload de imagens
-    async function uploadImagem(file, pasta, nomeArquivo) {
-      try {
+async function uploadImagem(file, pasta, nomeArquivo) {
+    try {
+        // 🔥 VERIFICAR SE SUPABASE FOI INICIALIZADO
+        if (!supabase) {
+            const inicializado = inicializarSupabase();
+            if (!inicializado) {
+                console.error('Supabase não inicializado para upload');
+                return null;
+            }
+        }
+   
         console.log('Fazendo upload:', nomeArquivo);
         
         const { data, error } = await supabase.storage
@@ -389,8 +414,8 @@
           .upload(`${pasta}/${nomeArquivo}`, file);
         
         if (error) {
-          console.error('Erro no upload:', error);
-          return null;
+            console.error('Erro no upload:', error);
+            return null;
         }
         
         // Obter URL pública da imagem
@@ -400,18 +425,58 @@
         
         console.log('Upload realizado:', urlData.publicUrl);
         return urlData.publicUrl;
-      } catch (error) {
+    } catch (error) {
         console.error('Erro no upload:', error);
         return null;
-      }
     }
+}
 
-    // 🔥 FUNÇÃO ATUALIZADA: Salvar dados no banco com colunas corretas
-    async function salvarChecklist(dados) {
-      try {
+// FUNÇÃO PARA BUSCAR ÚLTIMO KM DO VEÍCULO
+async function buscarUltimoKM(placaVeiculo) {
+    try {
+        console.log('Buscando último KM para placa:', placaVeiculo);
+        
+        const { data, error } = await supabase
+            .from('checklists')
+            .select('quilometragem, created_at')
+            .eq('placa', placaVeiculo)
+            .order('created_at', { ascending: false })
+            .limit(1);
+        
+        if (error) {
+            console.error('Erro ao buscar último KM:', error);
+            return null;
+        }
+        
+        if (data && data.length > 0) {
+            console.log('Último KM encontrado:', data[0].quilometragem);
+            return data[0].quilometragem;
+        } else {
+            console.log('Nenhum registro anterior encontrado para esta placa');
+            return null;
+        }
+    } catch (error) {
+        console.error('Erro ao buscar último KM:', error);
+        return null;
+    }
+}
+// 🔥 🔥 🔥 FIM DA INSERÇÃO 🔥 🔥 🔥
+
+// 🔥 FUNÇÃO ATUALIZADA: Salvar dados no banco com verificação de conexão
+async function salvarChecklist(dados) {
+    try {
+        // 🔥 VERIFICAR SE SUPABASE FOI INICIALIZADO
+        if (!supabase) {
+            const inicializado = inicializarSupabase();
+            if (!inicializado) {
+                alert('❌ Erro de conexão. Verifique sua internet e tente novamente.');
+                return null;
+            }
+        }
+        
         console.log('Salvando no banco:', dados);
         
-        // 🔥 DADOS COM AS COLUNAS EXATAS DA SUA TABELA
+        // DADOS COM AS COLUNAS EXATAS DA SUA TABELA
         const dadosParaSalvar = {
             tipo_rota: dados.tipo_rota,
             data: dados.data,
@@ -432,19 +497,19 @@
           .select();
         
         if (error) {
-          console.error('Erro ao salvar:', error);
-          alert('Erro ao salvar no banco: ' + error.message);
-          return null;
+            console.error('Erro ao salvar:', error);
+            alert('Erro ao salvar no banco: ' + error.message);
+            return null;
         }
         
         console.log('Dados salvos com sucesso:', data);
         return data;
-      } catch (error) {
+    } catch (error) {
         console.error('Erro ao salvar no banco:', error);
         alert('Erro de conexão: ' + error.message);
         return null;
-      }
     }
+}
 
     // Converter assinatura (DataURL) para arquivo (Blob)
     function dataURLtoBlob(dataURL) {
@@ -472,15 +537,48 @@
         return true;
     }
 
-    // 🔥 FUNÇÃO ATUALIZADA: GERAR PDF + SALVAR NO SUPABASE
-    async function gerarESalvarPDF() {
-      const campos = document.querySelectorAll("#formulario [required]");
-      for (const campo of campos) {
+    // 🔥 FUNÇÃO ATUALIZADA: GERAR PDF + SALVAR NO SUPABASE COM VALIDAÇÃO DE KM
+async function gerarESalvarPDF() {
+    const campos = document.querySelectorAll("#formulario [required]");
+    for (const campo of campos) {
         if (!campo.value) {
-          alert("Preencha todos os campos obrigatórios antes de gerar o PDF!");
-          return;
+            alert("Preencha todos os campos obrigatórios antes de gerar o PDF!");
+            return;
         }
-      }
+    }
+    
+    // Verificar se a foto foi capturada
+    if (!fotoPainelDataURL) {
+        alert("Por favor, capture a foto do painel antes de gerar o PDF!");
+        return;
+    }
+    
+    // 🔥 🔥 🔥 NOVA VALIDAÇÃO DE KM 🔥 🔥 🔥
+    const placa = document.getElementById('placa').value;
+    const kmAtual = parseInt(document.getElementById('km').value);
+    
+    if (placa) {
+        const ultimoKM = await buscarUltimoKM(placa);
+        
+        if (ultimoKM !== null && kmAtual < ultimoKM) {
+            alert(`❌ ATENÇÃO: Quilometragem inválida!\n\nÚltimo KM registrado: ${ultimoKM} km\nKM informado: ${kmAtual} km\n\nA quilometragem não pode ser menor que a anterior.`);
+            return;
+        }
+        
+        // VALIDAÇÃO ADICIONAL: KM muito diferente do anterior (opcional)
+        if (ultimoKM !== null && kmAtual > ultimoKM + 1000) {
+            const confirmar = confirm(`⚠️ ATENÇÃO: Quilometragem muito alta!\n\nÚltimo KM: ${ultimoKM} km\nKM atual: ${kmAtual} km\nDiferença: ${kmAtual - ultimoKM} km\n\nConfirmar mesmo assim?`);
+            if (!confirmar) {
+                return;
+            }
+        }
+        
+        // PRIMEIRO REGISTRO - Mostrar informação
+        if (ultimoKM === null) {
+            alert(`✅ Primeiro registro para este veículo!\nKM inicial: ${kmAtual} km`);
+        }
+    }
+    // 🔥 🔥 🔥 FIM DA VALIDAÇÃO 🔥 🔥 🔥
       
       // Verificar se a foto foi capturada
       if (!fotoPainelDataURL) {
@@ -519,18 +617,18 @@
         const logoUrl = 'https://i.imgur.com/SEr4lkm.png';
         
         // Adicionar logomarca centralizada
-        doc.addImage(logoUrl, 'PNG', pageWidth / 2 - 40, yPos, 80, 30);
-        yPos += 40;
+        doc.addImage(logoUrl, 'PNG', pageWidth / 2 - 30, yPos, 60, 22);
+        yPos += 30;
         
         // Título principal
-        doc.setFontSize(16);
+        doc.setFontSize(14);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(0, 0, 0);
         doc.text('Controle de Uso de Veículos', pageWidth / 2, yPos, { align: 'center' });
-        yPos += 20;
+        yPos += 15;
         
         // --- SEÇÃO DE DADOS ---
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         
         // Função para adicionar campo
         function adicionarCampo(rotulo, valor, y) {
@@ -540,14 +638,14 @@
             
             // Valor
             doc.setFont(undefined, 'normal');
-            doc.text(valor.toString(), margin, y + 6);
+            doc.text(valor.toString(), margin, y + 5);
             
             // Linha divisória
             doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.5);
-            doc.line(margin, y + 10, pageWidth - margin, y + 10);
+            doc.setLineWidth(0.3);
+            doc.line(margin, y + 8, pageWidth - margin, y + 8);
             
-            return y + 15;
+            return y + 12;
         }
         
         // Adicionar campos com linhas divisórias
@@ -559,16 +657,16 @@
         yPos = adicionarCampo('Placa:', placa, yPos);
         yPos = adicionarCampo('Quilometragem:', km + ' km', yPos);
         
-        yPos += 5;
+        yPos += 3;
         
         // --- FOTO DO PAINEL (TAMANHO REDUZIDO) ---
         doc.setFont(undefined, 'bold');
         doc.text('Foto do Painel (KM):', margin, yPos);
-        yPos += 8;
+        yPos += 6;
         
         // Imagem com tamanho reduzido
-        const imgWidth = 50;
-        const imgHeight = 50; // Altura fixa reduzida
+        const imgWidth = 40;
+        const imgHeight = 40; // Altura fixa reduzida
         
         // Adicionar retângulo para a imagem
         doc.setDrawColor(0, 0, 0);
@@ -582,17 +680,17 @@
         
         doc.addImage(fotoPainelDataURL, 'JPEG', margin + 2, yPos + 2, finalImgWidth, finalImgHeight);
         
-        yPos += imgHeight + 15;
+        yPos += imgHeight + 10;
         
         // --- ASSINATURA DIGITAL ---
         doc.setFont(undefined, 'bold');
-        doc.text('Assinatura Digital:', margin, yPos);
-        yPos += 8;
+        doc.text('Assinatura Digital:', pageWidth / 2, yPos, { align: 'center' }); // 🔥 CENTRALIZADO
+        yPos += 6;
         
         // Adicionar retângulo para assinatura
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(0.5);
-        const signatureHeight = 30;
+        const signatureHeight = 25;
         doc.rect(margin, yPos, contentWidth, signatureHeight);
         
         // Adicionar assinatura se existir
@@ -600,24 +698,24 @@
         if (signatureDataURL && !signaturePadBlank()) {
             try {
                 const signatureProps = doc.getImageProperties(signatureDataURL);
-                const signatureWidth = contentWidth - 15;
+                const signatureWidth = contentWidth - 10;
                 const calcSignatureHeight = (signatureProps.height * signatureWidth) / signatureProps.width;
                 
                 // Ajustar altura para caber no retângulo
                 const finalSignatureHeight = Math.min(calcSignatureHeight, signatureHeight - 4);
                 
-                doc.addImage(signatureDataURL, 'PNG', margin + 5, yPos + 5, signatureWidth - 10, finalSignatureHeight);
+                doc.addImage(signatureDataURL, 'PNG', margin + 3, yPos + 3, signatureWidth - 6, finalSignatureHeight);
             } catch (e) {
                 console.log('Erro ao adicionar assinatura:', e);
             }
         }
         
-        yPos += signatureHeight + 15;
+        yPos += signatureHeight + 8;
         
         // --- NOME DO COLABORADOR ---
         doc.setFont(undefined, 'bold');
-        doc.setFontSize(10);
-        doc.text(colaborador, margin, yPos);
+        doc.setFontSize(9);
+        doc.text(colaborador, pageWidth / 2, yPos, { align: 'center' }); // 🔥 CENTRALIZADO
         
         // ✅ AGORA SALVAR TUDO NO SUPABASE
         const timestamp = new Date().getTime();
@@ -667,10 +765,33 @@
       }
     }
 
+// 🔥 🔥 🔥 INSERIR AQUI (OPCIONAL) 🔥 🔥 🔥
+// VALIDAÇÃO EM TEMPO REAL DO CAMPO KM
+document.getElementById('km').addEventListener('change', async function() {
+    const placa = document.getElementById('placa').value;
+    const kmDigitado = parseInt(this.value);
+    
+    if (placa && kmDigitado) {
+        const ultimoKM = await buscarUltimoKM(placa);
+        
+        if (ultimoKM !== null && kmDigitado < ultimoKM) {
+            alert(`⚠️ Quilometragem menor que o último registro (${ultimoKM} km)`);
+            this.style.borderColor = 'red';
+            this.style.backgroundColor = '#ffe6e6';
+        } else {
+            this.style.borderColor = '';
+            this.style.backgroundColor = '';
+        }
+    }
+});
+// 🔥 🔥 🔥 FIM DA INSERÇÃO OPCIONAL 🔥 🔥 🔥
+
     // Inicializar assinatura quando a página carrega
     window.addEventListener('load', function() {
-      // A assinatura será inicializada quando o formulário for mostrado
-    });
+    // Inicializar Supabase quando a página carregar
+    inicializarSupabase();
+    // A assinatura será inicializada quando o formulário for mostrado
+});
   </script>
 </body>
 </html>
