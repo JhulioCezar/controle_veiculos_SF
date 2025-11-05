@@ -6,9 +6,10 @@
   "scope": "/controle_veiculos_SF/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#004aad",
+  "theme_color": "#2b6cb0",
   "orientation": "portrait-primary",
   "categories": ["business", "productivity"],
+  "lang": "pt-BR",
   "icons": [
     {
       "src": "android-icon-192x192.png",
@@ -23,4 +24,5 @@
       "purpose": "any maskable"
     }
   ]
+
 }
