@@ -79,6 +79,7 @@
     #signature-pad {
       border: 2px dashed #aaa;
       height: 150px;
+      background-color: white;
     }
   </style>
 </head>
@@ -190,8 +191,15 @@
         alert("Selecione o tipo de rota para continuar.");
         return;
       }
+      
+      // 🔥 ATUALIZAR DATA/HORA NO MOMENTO DA SELEÇÃO
+      atualizarDataHora();
+      
       document.getElementById("step-selection").style.display = "none";
       document.getElementById("formulario").style.display = "block";
+      
+      // Inicializar o canvas da assinatura quando o formulário é mostrado
+      inicializarAssinatura();
     }
 
     function voltarInicio() {
@@ -204,33 +212,96 @@
     function limparFormulario() {
       if (confirm("Deseja limpar todos os campos?")) {
         document.getElementById("formulario").reset();
+        // 🔥 ATUALIZAR DATA/HORA AO LIMPAR FORMULÁRIO
+        atualizarDataHora();
         limparAssinatura();
       }
     }
 
-    function limparAssinatura() {
-      const ctx = signaturePad.getContext("2d");
-      ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
+    // ---------- ASSINATURA DIGITAL CORRIGIDA ----------
+    let signaturePad, ctx, desenhando = false;
+
+    function inicializarAssinatura() {
+      signaturePad = document.getElementById("signature-pad");
+      ctx = signaturePad.getContext("2d");
+      
+      // Configurar tamanho do canvas
+      signaturePad.width = signaturePad.offsetWidth;
+      signaturePad.height = signaturePad.offsetHeight;
+      
+      // Configurar estilo do desenho
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      // Limpar eventos anteriores
+      signaturePad.replaceWith(signaturePad.cloneNode(true));
+      signaturePad = document.getElementById("signature-pad");
+      ctx = signaturePad.getContext("2d");
+      
+      // Configurar estilo novamente
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      // Adicionar eventos
+      signaturePad.addEventListener('mousedown', iniciarDesenho);
+      signaturePad.addEventListener('mousemove', desenhar);
+      signaturePad.addEventListener('mouseup', pararDesenho);
+      signaturePad.addEventListener('mouseleave', pararDesenho);
+      
+      // Eventos para touch (mobile)
+      signaturePad.addEventListener('touchstart', iniciarDesenho);
+      signaturePad.addEventListener('touchmove', desenhar);
+      signaturePad.addEventListener('touchend', pararDesenho);
     }
 
-    // ---------- ASSINATURA ----------
-    const signaturePad = document.getElementById("signature-pad");
-    const ctx = signaturePad.getContext("2d");
-    let desenhando = false;
+    function getCoordenadasCanvas(e) {
+      const rect = signaturePad.getBoundingClientRect();
+      let clientX, clientY;
+      
+      if (e.type.includes('touch')) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
 
-    signaturePad.addEventListener("mousedown", e => {
+    function iniciarDesenho(e) {
+      e.preventDefault();
       desenhando = true;
+      const coords = getCoordenadasCanvas(e);
       ctx.beginPath();
-      ctx.moveTo(e.offsetX, e.offsetY);
-    });
+      ctx.moveTo(coords.x, coords.y);
+    }
 
-    signaturePad.addEventListener("mousemove", e => {
+    function desenhar(e) {
+      e.preventDefault();
       if (!desenhando) return;
-      ctx.lineTo(e.offsetX, e.offsetY);
+      
+      const coords = getCoordenadasCanvas(e);
+      ctx.lineTo(coords.x, coords.y);
       ctx.stroke();
-    });
+    }
 
-    signaturePad.addEventListener("mouseup", () => (desenhando = false));
+    function pararDesenho() {
+      desenhando = false;
+    }
+
+    function limparAssinatura() {
+      if (ctx) {
+        ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
+      }
+    }
 
     // ---------- AUTO DATA / HORA ----------
     function atualizarDataHora() {
@@ -256,7 +327,16 @@
           return;
         }
       }
+      
+      // 🔥 ATUALIZAR DATA/HORA FINAL ANTES DO ENVIO
+      atualizarDataHora();
+      
       alert("Formulário pronto para envio! (Integração com Google Sheets será adicionada a seguir.)");
+    });
+
+    // Inicializar assinatura quando a página carrega
+    window.addEventListener('load', function() {
+      // A assinatura será inicializada quando o formulário for mostrado
     });
   </script>
 </body>
