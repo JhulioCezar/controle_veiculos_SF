@@ -164,25 +164,8 @@
     <script>
         const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxW9m2C70AaDFrPEPt68EPn7mw5HhjtyieN3T014T8Gl41Fwy40E9UNieetfgBaZEUX/exec';
 
-        // FUNÇÃO DO SERVICE WORKER - ÚNICA ALTERAÇÃO
-        function registrarServiceWorker() {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker
-                    .register('./sw.js')
-                    .then(function(registration) {
-                        console.log('✅ Service Worker registrado com sucesso:', registration);
-                    })
-                    .catch(function(error) {
-                        console.error('❌ Falha no registro do Service Worker:', error);
-                    });
-            }
-        }
-
         $(document).ready(function() {
             console.log('✅ Aplicação iniciada');
-            
-            // CHAMADA DO SERVICE WORKER - ÚNICA ALTERAÇÃO
-            registrarServiceWorker();
             
             const agora = new Date();
             $('#data').val(agora.toISOString().split('T')[0]);
