@@ -201,9 +201,8 @@
     let signaturePad, ctx, desenhando = false;
 
     // ========== SUPABASE CONFIGURAÇÃO ==========
-    // 🔥 SUBSTITUA COM SUAS CREDENCIAIS REAIS DO SUPABASE!
-    const SUPABASE_URL = 'https://thkswytkcxscizlmyehr.supabase.co'; // Cole sua URL aqui
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoa3N3eXRrY3hzY2l6bG15ZWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTU0MDMsImV4cCI6MjA3NzkzMTQwM30.u6PA4JtuKRTld2xQyUUq9n9YWAQf0uAQg-TS4x2na1c'; // Cole sua chave aqui
+    const SUPABASE_URL = 'https://thkswytkcxscizlmyehr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoa3N3eXRrY3hzY2l6bG15ZWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTU0MDMsImV4cCI6MjA3NzkzMTQwM30.u6PA4JtuKRTld2xQyUUq9n9YWAQf0uAQg-TS4x2na1c';
 
     // Inicializar Supabase
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -379,7 +378,7 @@
       document.getElementById("nomeAssinatura").textContent = e.target.value;
     });
 
-    // ========== FUNÇÕES SUPABASE ==========
+    // ========== FUNÇÕES SUPABASE ATUALIZADAS ==========
     // Função para fazer upload de imagens
     async function uploadImagem(file, pasta, nomeArquivo) {
       try {
@@ -391,7 +390,7 @@
         
         if (error) {
           console.error('Erro no upload:', error);
-          throw error;
+          return null;
         }
         
         // Obter URL pública da imagem
@@ -407,24 +406,42 @@
       }
     }
 
-    // Função para salvar dados no banco
+    // 🔥 FUNÇÃO ATUALIZADA: Salvar dados no banco com colunas corretas
     async function salvarChecklist(dados) {
       try {
         console.log('Salvando no banco:', dados);
         
+        // 🔥 DADOS COM AS COLUNAS EXATAS DA SUA TABELA
+        const dadosParaSalvar = {
+            tipo_rota: dados.tipo_rota,
+            data: dados.data,
+            hora: dados.hora,
+            colaborador: dados.colaborador,
+            tipo_veiculo: dados.tipo_veiculo,
+            veiculo: dados.veiculo,
+            placa: dados.placa,
+            quilometragem: dados.quilometragem,
+            foto_painel_url: dados.foto_painel_url,
+            assinatura_url: dados.assinatura_url,
+            created_at: new Date().toISOString()
+        };
+        
         const { data, error } = await supabase
           .from('checklists')
-          .insert([dados]);
+          .insert([dadosParaSalvar])
+          .select();
         
         if (error) {
           console.error('Erro ao salvar:', error);
-          throw error;
+          alert('Erro ao salvar no banco: ' + error.message);
+          return null;
         }
         
         console.log('Dados salvos com sucesso:', data);
         return data;
       } catch (error) {
         console.error('Erro ao salvar no banco:', error);
+        alert('Erro de conexão: ' + error.message);
         return null;
       }
     }
@@ -617,7 +634,7 @@
             assinaturaUrl = await uploadImagem(signatureBlob, 'assinaturas', `assinatura_${timestamp}.png`);
         }
         
-        // 3. Salvar todos os dados no banco
+        // 3. 🔥 SALVAR TODOS OS DADOS NO BANCO COM COLUNAS CORRETAS
         const dadosChecklist = {
             tipo_rota: tipoRota === 'inicio' ? 'INÍCIO' : 'FINAL',
             data: data,
@@ -631,12 +648,15 @@
             assinatura_url: assinaturaUrl
         };
         
-        await salvarChecklist(dadosChecklist);
+        const resultado = await salvarChecklist(dadosChecklist);
         
-        // 4. Salvar PDF localmente
-        doc.save(fileName);
-        
-        alert('✅ PDF gerado e todos os dados salvos no sistema!');
+        if (resultado) {
+          // 4. Salvar PDF localmente
+          doc.save(fileName);
+          alert('✅ PDF gerado e todos os dados salvos no sistema!');
+        } else {
+          alert('❌ Erro ao salvar no banco de dados. O PDF foi gerado, mas os dados não foram salvos.');
+        }
         
       } catch (error) {
         console.error('Erro ao gerar PDF:', error);
