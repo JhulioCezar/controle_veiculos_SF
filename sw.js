@@ -17,92 +17,63 @@ const FILES_TO_CACHE = [
   'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js'
 ];
 // FIM CONFIGURAÇÃO DO CACHE
-
-// INÍCIO EVENTO: INSTALAÇÃO
-self.addEventListener('install', (event) => {
-  console.log('📦 Service Worker instalando...');
-  
+// 📦 Instalação
+self.addEventListener("install", event => {
+  console.log("📦 Instalando Service Worker...");
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => {
-        console.log('✅ Cache estático pré-carregado');
-        return cache.addAll(FILES_TO_CACHE);
-      })
-      .then(() => {
-        console.log('🚀 SkipWaiting ativado');
-        return self.skipWaiting();
-      })
-      .catch((error) => {
-        console.error('❌ Erro no cache de instalação:', error);
-      })
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(FILES_TO_CACHE))
+      .catch(err => console.log("❌ Erro no cache:", err))
   );
+  self.skipWaiting();
 });
-// FIM EVENTO INSTALAÇÃO
 
-// INÍCIO EVENTO: ATIVAÇÃO
-self.addEventListener('activate', (event) => {
-  console.log('🔄 Service Worker ativando...');
-  
+// 🔄 Ativação
+self.addEventListener("activate", event => {
+  console.log("🔄 Ativando nova versão...");
   event.waitUntil(
-    caches.keys().then((keys) => {
+    caches.keys().then(keys => {
       return Promise.all(
-        keys.map((key) => {
-          // Remove caches antigos
-          if (key !== STATIC_CACHE && key !== DYNAMIC_CACHE) {
-            console.log('🧹 Removendo cache antigo:', key);
-            return caches.delete(key);
-          }
-        })
+        keys.map(key => key !== CACHE_NAME && caches.delete(key))
       );
-    }).then(() => {
-      console.log('✅ Nova versão ativada');
-      return self.clients.claim();
+    })
+  );
+  self.clients.claim();
+});
+
+// 🌐 Intercepta requisições
+self.addEventListener("fetch", event => {
+  if (event.request.method !== "GET") return;
+
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      const fetchPromise = fetch(event.request)
+        .then(response => {
+          // Só cachear se for uma resposta válida e do mesmo origin
+          if (response && response.status === 200 && response.url.startsWith(self.location.origin)) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => cached || caches.match("./index.html")); // ✅ Fallback correto
+
+      // Para páginas HTML, priorizar network
+      if (event.request.destination === "document" || 
+          event.request.headers.get('accept').includes('text/html')) {
+        return fetchPromise;
+      }
+
+      return cached || fetchPromise;
     })
   );
 });
-// FIM EVENTO ATIVAÇÃO
 
-// INÍCIO EVENTO: FETCH (Intercepta requisições)
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  
-  // Ignora requisições não-GET e para o Google Apps Script
-  if (request.method !== 'GET' || request.url.includes('script.google.com')) {
-    return;
-  }
-
-  // 🔥 CORREÇÃO: URLs do GitHub Pages
-  if (request.url.includes('github.io') || request.url.startsWith('http')) {
-    event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        // INÍCIO ESTRATÉGIA: Network First com fallback para cache
-        return fetch(request)
-          .then((networkResponse) => {
-            // Cache apenas respostas válidas
-            if (networkResponse && networkResponse.status === 200) {
-              const responseClone = networkResponse.clone();
-              caches.open(DYNAMIC_CACHE).then((cache) => {
-                cache.put(request, responseClone);
-              });
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            // Fallback para cache
-            return cachedResponse || caches.match('./index.html');
-          });
-        // FIM ESTRATÉGIA Network First
-      })
-    );
-  }
-});
-// FIM EVENTO FETCH
-
-// INÍCIO EVENTO: MESSAGE (Comunicação com a app)
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('⏩ Pulando para nova versão');
+// 🔔 Atualização manual
+self.addEventListener("message", event => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
 });
-// FIM EVENTO MESSAGE
