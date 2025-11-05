@@ -1,7 +1,7 @@
 // INÍCIO CONFIGURAÇÃO DO CACHE
-const CACHE_NAME = 'checklist-veiculos-v2.0.1';
-const STATIC_CACHE = 'static-v2';
-const DYNAMIC_CACHE = 'dynamic-v2';
+const CACHE_NAME = 'checklist-veiculos-v3.0.0';
+const STATIC_CACHE = 'static-v3';
+const DYNAMIC_CACHE = 'dynamic-v3';
 
 // ARQUIVOS PARA CACHE NA INSTALAÇÃO
 const FILES_TO_CACHE = [
@@ -10,6 +10,7 @@ const FILES_TO_CACHE = [
   './manifest.json',
   './android-icon-192x192.png',
   './android-icon-512x512.png',
+  'https://i.imgur.com/SEr4lkm.png', // 🔥 LOGO ADICIONADA
   'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
   'https://code.jquery.com/jquery-3.6.0.min.js',
@@ -70,32 +71,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      // INÍCIO ESTRATÉGIA: Cache First com fallback para network
-      if (cachedResponse) {
-        console.log('📂 Servindo do cache:', request.url);
-        return cachedResponse;
-      }
-
-      return fetch(request).then((networkResponse) => {
-        // Cache apenas respostas válidas
-        if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(DYNAMIC_CACHE).then((cache) => {
-            cache.put(request, responseClone);
+  // 🔥 CORREÇÃO: URLs do GitHub Pages
+  if (request.url.includes('github.io') || request.url.startsWith('http')) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        // INÍCIO ESTRATÉGIA: Network First com fallback para cache
+        return fetch(request)
+          .then((networkResponse) => {
+            // Cache apenas respostas válidas
+            if (networkResponse && networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              caches.open(DYNAMIC_CACHE).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
+            return networkResponse;
+          })
+          .catch(() => {
+            // Fallback para cache
+            return cachedResponse || caches.match('./index.html');
           });
-        }
-        return networkResponse;
-      }).catch(() => {
-        // Fallback para página offline se disponível
-        if (request.destination === 'document') {
-          return caches.match('./index.html');
-        }
-      });
-      // FIM ESTRATÉGIA Cache First
-    })
-  );
+        // FIM ESTRATÉGIA Network First
+      })
+    );
+  }
 });
 // FIM EVENTO FETCH
 
