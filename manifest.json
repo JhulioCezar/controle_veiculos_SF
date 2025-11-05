@@ -1,24 +1,26 @@
 {
-  "id": "/index.html",
   "name": "Checklist de Veículos - Sem Fronteiras",
-  "short_name": "Checklist",
-  "description": "Aplicativo de checklist de veículos",
-  "start_url": "https://jhuliocezar.github.io/controle_veiculos_SF/index.html?source=pwa",
-  "scope": "https://jhuliocezar.github.io/controle_veiculos_SF/"
+  "short_name": "Checklist SF",
+  "description": "Sistema de controle e checklist para frota de veículos",
+  "start_url": "/controle_veiculos_SF/",
+  "scope": "/controle_veiculos_SF/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#004aad",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "https://i.imgur.com/kpxfI4r.png",
+      "src": "android-icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "https://i.imgur.com/t1A2m5q.png",
+      "src": "android-icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
