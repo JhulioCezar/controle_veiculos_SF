@@ -1,11 +1,13 @@
 {
+  "id": "/index.html",
   "name": "Checklist de Veículos - Sem Fronteiras",
   "short_name": "Checklist",
-  "description": "Aplicativo de checklist de veículos para controle e quilometragem.",
-  "start_url": "./index.html",
+  "description": "Aplicativo de checklist de veículos",
+  "start_url": "https://jhuliocezar.github.io/controle_veiculos_SF/index.html?source=pwa",
+  "scope": "https://jhuliocezar.github.io/controle_veiculos_SF/"
   "display": "standalone",
-  "background_color": "#f7f7f7",
-  "theme_color": "#2b6cb0",
+  "background_color": "#ffffff",
+  "theme_color": "#004aad",
   "orientation": "portrait",
   "icons": [
     {
