@@ -1,435 +1,300 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <!-- Configurações básicas da página -->
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- Título da página -->
-    <title>Checklist Veículos</title>
-    
-    <!-- Importação do Bootstrap para estilização -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Importação do Font Awesome para ícones -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Estilos customizados -->
-    <style>
-        /* INÍCIO ESTILOS GLOBAIS */
-        body {
-            background-color: #f8f9fa;
-            padding-top: 20px;
-        }
-        
-        .container {
-            max-width: 800px;
-        }
-        
-        .card {
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        
-        .btn-primary {
-            background-color: #007bff;
-            border-color: #007bff;
-        }
-        
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-        /* FIM ESTILOS GLOBAIS */
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Controle de Uso de Veículos</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#004aad" />
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+    margin: 0;
+    padding: 0;
+  }
+  header {
+    text-align: center;
+    background: #004aad;
+    color: white;
+    padding: 10px;
+  }
+  header img {
+    max-width: 150px;
+  }
+  form {
+    max-width: 700px;
+    margin: 20px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  label {
+    font-weight: bold;
+    display: block;
+    margin-top: 10px;
+  }
+  select, input, textarea, button {
+    width: 100%;
+    padding: 8px;
+    margin-top: 4px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+  }
+  canvas {
+    border: 2px solid #004aad;
+    border-radius: 8px;
+    width: 100%;
+    height: 200px;
+    touch-action: none;
+  }
+  .buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+  }
+  .buttons button {
+    flex: 1;
+    margin: 5px;
+    padding: 10px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+</style>
 </head>
 <body>
-    <!-- INÍCIO CONTAINER PRINCIPAL -->
-    <div class="container">
-        
-        <!-- CABEÇALHO DA APLICAÇÃO -->
-        <div class="text-center mb-4">
-            <h1 class="display-4">
-                <i class="fas fa-car"></i> Checklist Veículos
-            </h1>
-            <p class="lead">Controle de uso e manutenção de veículos</p>
-        </div>
-        <!-- FIM CABEÇALHO -->
+  <header>
+    <img src="https://i.imgur.com/SEr4lkm.png" alt="Logo" />
+    <h2>Controle de Uso de Veículos</h2>
+  </header>
 
-        <!-- INÍCIO CARD DO FORMULÁRIO -->
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-clipboard-list"></i> Novo Registro
-                </h5>
-            </div>
-            
-            <!-- INÍCIO CORPO DO FORMULÁRIO -->
-            <div class="card-body">
-                
-                <!-- INÍCIO FORMULÁRIO PRINCIPAL -->
-                <form id="checklistForm">
-                    
-                    <!-- LINHA 1: DATA E HORA -->
-                    <div class="row mb-3">
-                        <!-- Campo Data -->
-                        <div class="col-md-6">
-                            <label class="form-label">Data</label>
-                            <input type="date" class="form-control" id="data" required>
-                        </div>
-                        <!-- Campo Hora -->
-                        <div class="col-md-6">
-                            <label class="form-label">Hora</label>
-                            <input type="time" class="form-control" id="hora" required>
-                        </div>
-                    </div>
-                    <!-- FIM LINHA 1 -->
+  <form id="formulario">
+    <label for="rotaTipo">Tipo de Registro:</label>
+    <select id="rotaTipo" required>
+      <option value="">Selecione...</option>
+      <option value="Início de Rota">Início de Rota</option>
+      <option value="Final de Rota">Final de Rota</option>
+    </select>
 
-                    <!-- LINHA 2: TIPO DE REGISTRO E COLABORADOR -->
-                    <div class="row mb-3">
-                        <!-- Campo Tipo de Registro -->
-                        <div class="col-md-6">
-                            <label class="form-label">Tipo de Registro</label>
-                            <select class="form-select" id="tipoRegistro" required>
-                                <option value="">Selecione...</option>
-                                <option value="Saída">Saída</option>
-                                <option value="Retorno">Retorno</option>
-                                <option value="Manutenção">Manutenção</option>
-                            </select>
-                        </div>
-                        <!-- Campo Colaborador -->
-                        <div class="col-md-6">
-                            <label class="form-label">Colaborador</label>
-                            <input type="text" class="form-control" id="colaborador" required>
-                        </div>
-                    </div>
-                    <!-- FIM LINHA 2 -->
+    <label for="dataAtual">Data:</label>
+    <input type="text" id="dataAtual" readonly />
 
-                    <!-- LINHA 3: TIPO DE VEÍCULO E VEÍCULO -->
-                    <div class="row mb-3">
-                        <!-- Campo Tipo de Veículo -->
-                        <div class="col-md-6">
-                            <label class="form-label">Tipo de Veículo</label>
-                            <select class="form-select" id="tipoVeiculo" required>
-                                <option value="">Selecione...</option>
-                                <option value="Carro">Carro</option>
-                                <option value="Moto">Moto</option>
-                                <option value="Caminhão">Caminhão</option>
-                                <option value="Van">Van</option>
-                            </select>
-                        </div>
-                        <!-- Campo Veículo -->
-                        <div class="col-md-6">
-                            <label class="form-label">Veículo</label>
-                            <input type="text" class="form-control" id="veiculo" required>
-                        </div>
-                    </div>
-                    <!-- FIM LINHA 3 -->
+    <label for="horaAtual">Hora:</label>
+    <input type="text" id="horaAtual" readonly />
 
-                    <!-- LINHA 4: PLACA E QUILOMETRAGEM -->
-                    <div class="row mb-3">
-                        <!-- Campo Placa -->
-                        <div class="col-md-6">
-                            <label class="form-label">Placa</label>
-                            <input type="text" class="form-control" id="placa" required>
-                        </div>
-                        <!-- Campo Quilometragem -->
-                        <div class="col-md-6">
-                            <label class="form-label">Quilometragem (KM)</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="km" required>
-                                <!-- Botão para buscar última KM -->
-                                <button type="button" class="btn btn-outline-secondary" onclick="buscarUltimaKM()">
-                                    <i class="fas fa-sync-alt"></i> Buscar Última
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- FIM LINHA 4 -->
+    <label for="colaborador">Colaborador:</label>
+    <select id="colaborador" required>
+      <option value="">Selecione...</option>
+      <option value="Jhulio Cezar de Alencar Araujo">Jhulio Cezar de Alencar Araujo</option>
+      <option value="João Paulo de Sousa">João Paulo de Sousa</option>
+      <option value="Francisco Junior">Francisco Junior</option>
+    </select>
 
-                    <!-- SEÇÃO CHECKLIST -->
-                    <div class="mb-3">
-                        <label class="form-label">Checklist</label>
-                        
-                        <!-- Itens do checklist como checkboxes -->
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="combustivel">
-                            <label class="form-check-label" for="combustivel">Combustível</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="oleo">
-                            <label class="form-check-label" for="oleo">Óleo</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="pneus">
-                            <label class="form-check-label" for="pneus">Pneus</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="freios">
-                            <label class="form-check-label" for="freios">Freios</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="documentos">
-                            <label class="form-check-label" for="documentos">Documentos</label>
-                        </div>
-                    </div>
-                    <!-- FIM SEÇÃO CHECKLIST -->
+    <label for="tipoVeiculo">Tipo de Veículo:</label>
+    <select id="tipoVeiculo" required onchange="carregarVeiculos()">
+      <option value="">Selecione...</option>
+      <option value="Carro">Carro</option>
+      <option value="Moto">Moto</option>
+    </select>
 
-                    <!-- CAMPO OBSERVAÇÕES -->
-                    <div class="mb-3">
-                        <label class="form-label">Observações</label>
-                        <textarea class="form-control" id="observacoes" rows="3"></textarea>
-                    </div>
+    <label for="veiculo">Veículo:</label>
+    <select id="veiculo" required onchange="atualizarPlaca()">
+      <option value="">Selecione o tipo primeiro...</option>
+    </select>
 
-                    <!-- BOTÕES DE AÇÃO -->
-                    <div class="d-grid gap-2">
-                        <!-- Botão principal de envio -->
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-save"></i> Salvar Registro
-                        </button>
-                        
-                        <!-- Botão secundário para limpar formulário -->
-                        <button type="button" class="btn btn-outline-secondary" onclick="limparFormulario()">
-                            <i class="fas fa-broom"></i> Limpar Formulário
-                        </button>
-                    </div>
+    <label for="placa">Placa:</label>
+    <input type="text" id="placa" readonly />
 
-                </form>
-                <!-- FIM FORMULÁRIO PRINCIPAL -->
+    <label for="km">Quilometragem:</label>
+    <input type="number" id="km" required />
 
-            </div>
-            <!-- FIM CORPO DO FORMULÁRIO -->
-        </div>
-        <!-- FIM CARD DO FORMULÁRIO -->
+    <label>Foto do Painel:</label>
+    <input type="file" accept="image/*" capture="camera" id="fotoPainel" />
+    <img id="preview" style="width:100%;margin-top:8px;display:none;" />
 
-        <!-- INÍCIO ÁREA DE MENSAGENS -->
-        <div id="mensagens"></div>
-        <!-- FIM ÁREA DE MENSAGENS -->
+    <label>Assinatura Digital:</label>
+    <canvas id="signatureCanvas"></canvas>
+    <button type="button" onclick="limparAssinatura()">Limpar Assinatura</button>
+    <p id="assinaturaColaborador" style="text-align:center;font-weight:bold;margin-top:5px;"></p>
 
-        <!-- INÍCIO INDICADOR DE CARREGAMENTO -->
-        <div id="loading" class="loading">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Carregando...</span>
-            </div>
-            <p class="mt-2">Processando...</p>
-        </div>
-        <!-- FIM INDICADOR DE CARREGAMENTO -->
-
+    <div class="buttons">
+      <button type="button" onclick="voltarTela()">Voltar</button>
+      <button type="button" onclick="limparFormulario()">Limpar Formulário</button>
+      <button type="submit">Enviar</button>
     </div>
-    <!-- FIM CONTAINER PRINCIPAL -->
+  </form>
 
-    <!-- INÍCIO IMPORTAÇÃO DE SCRIPTS -->
-    
-    <!-- jQuery para simplificar manipulação DOM -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
-    <!-- Bootstrap JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxW9m2C70AaDFrPEPt68EPn7mw5HhjtyieN3T014T8Gl41Fwy40E9UNieetfgBaZEUX/exec";
 
-    <!-- INÍCIO JAVASCRIPT DA APLICAÇÃO -->
-    <script>
-        // URL do Web App do Google Apps Script
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxW9m2C70AaDFrPEPt68EPn7mw5HhjtyieN3T014T8Gl41Fwy40E9UNieetfgBaZEUX/exec';
+// ======= AUTO DATA E HORA =======
+function atualizarDataHora() {
+  const agora = new Date();
+  document.getElementById("dataAtual").value = agora.toLocaleDateString("pt-BR");
+  document.getElementById("horaAtual").value = agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+setInterval(atualizarDataHora, 60000);
+window.onload = atualizarDataHora;
 
-        // INÍCIO FUNÇÃO: Inicialização quando documento está pronto
-        $(document).ready(function() {
-            console.log('✅ Aplicação iniciada');
-            
-            // Define data e hora atuais nos campos
-            const agora = new Date();
-            $('#data').val(agora.toISOString().split('T')[0]);
-            $('#hora').val(agora.toTimeString().split(' ')[0].substring(0, 5));
-            
-            // INÍCIO EVENTO: Submissão do formulário
-            $('#checklistForm').on('submit', function(e) {
-                e.preventDefault(); // Previne comportamento padrão do form
-                console.log('📤 Formulário submetido');
-                enviarFormulario(); // Chama função de envio
-            });
-            // FIM EVENTO Submissão do formulário
-        });
-        // FIM FUNÇÃO Inicialização
+// ======= DADOS DE VEÍCULOS =======
+const veiculos = {
+  Carro: [
+    { nome: "Volkswagen Polo", placa: "NXR-6B97" },
+    { nome: "Fiat Toro", placa: "NAB-2B27" }
+  ],
+  Moto: [
+    // Adicione aqui suas motos quando quiser
+  ]
+};
 
-        // INÍCIO FUNÇÃO: Buscar última quilometragem do veículo
-        async function buscarUltimaKM() {
-            const veiculo = $('#veiculo').val().trim();
-            
-            // Valida se o campo veículo está preenchido
-            if (!veiculo) {
-                mostrarMensagem('⚠️ Informe o veículo para buscar a KM', 'warning');
-                return;
-            }
+function carregarVeiculos() {
+  const tipo = document.getElementById("tipoVeiculo").value;
+  const select = document.getElementById("veiculo");
+  select.innerHTML = '<option value="">Selecione...</option>';
+  if (veiculos[tipo]) {
+    veiculos[tipo].forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.nome;
+      opt.textContent = v.nome;
+      select.appendChild(opt);
+    });
+  }
+}
 
-            console.log(`🔍 Buscando última KM para: ${veiculo}`);
-            mostrarLoading(true); // Exibe indicador de carregamento
+function atualizarPlaca() {
+  const tipo = document.getElementById("tipoVeiculo").value;
+  const veiculoSelecionado = document.getElementById("veiculo").value;
+  const v = veiculos[tipo]?.find(v => v.nome === veiculoSelecionado);
+  document.getElementById("placa").value = v ? v.placa : "";
+}
 
-            try {
-                // INÍCIO REQUISIÇÃO: Buscar última KM via GET
-                const response = await fetch(`${WEB_APP_URL}?action=getLastKM&veiculo=${encodeURIComponent(veiculo)}`);
-                console.log('📥 Resposta recebida:', response.status);
-                
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status}`);
-                }
+// ======= ASSINATURA DIGITAL =======
+const canvas = document.getElementById("signatureCanvas");
+const ctx = canvas.getContext("2d");
+let desenhando = false;
 
-                const data = await response.json();
-                console.log('📊 Dados recebidos:', data);
-                // FIM REQUISIÇÃO Buscar última KM
+function ajustarCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#004aad";
+}
+ajustarCanvas();
+window.addEventListener("resize", ajustarCanvas);
 
-                // Processa a resposta
-                if (data.success && data.ultimoKM > 0) {
-                    $('#km').val(data.ultimoKM);
-                    mostrarMensagem(`✅ Última KM encontrada: ${data.ultimoKM}`, 'success');
-                } else {
-                    mostrarMensagem('ℹ️ Nenhuma KM anterior encontrada para este veículo', 'info');
-                }
+canvas.addEventListener("mousedown", e => {
+  desenhando = true;
+  ctx.beginPath();
+  ctx.moveTo(e.offsetX, e.offsetY);
+});
+canvas.addEventListener("mousemove", e => {
+  if (!desenhando) return;
+  ctx.lineTo(e.offsetX, e.offsetY);
+  ctx.stroke();
+});
+canvas.addEventListener("mouseup", () => desenhando = false);
+canvas.addEventListener("mouseleave", () => desenhando = false);
 
-            } catch (error) {
-                // TRATAMENTO DE ERRO: Busca de KM
-                console.error('❌ Erro ao buscar KM:', error);
-                mostrarMensagem('❌ Erro ao buscar última KM. Verifique a conexão.', 'danger');
-            } finally {
-                mostrarLoading(false); // Esconde indicador de carregamento
-            }
-        }
-        // FIM FUNÇÃO Buscar última quilometragem
+// Suporte toque
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  ctx.beginPath();
+  ctx.moveTo(t.clientX - rect.left, t.clientY - rect.top);
+  desenhando = true;
+});
+canvas.addEventListener("touchmove", e => {
+  e.preventDefault();
+  if (!desenhando) return;
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  ctx.lineTo(t.clientX - rect.left, t.clientY - rect.top);
+  ctx.stroke();
+});
+canvas.addEventListener("touchend", () => desenhando = false);
 
-        // INÍCIO FUNÇÃO: Enviar formulário completo
-        async function enviarFormulario() {
-            console.log('🔄 Iniciando envio do formulário...');
-            mostrarLoading(true); // Exibe loading
+function limparAssinatura() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
 
-            // INÍCIO COLETA DE DADOS: Obtém valores dos campos do formulário
-            const dados = {
-                data: $('#data').val(),
-                hora: $('#hora').val(),
-                tipoRegistro: $('#tipoRegistro').val(),
-                colaborador: $('#colaborador').val(),
-                tipoVeiculo: $('#tipoVeiculo').val(),
-                veiculo: $('#veiculo').val(),
-                placa: $('#placa').val(),
-                km: $('#km').val(),
-                checklist: obterChecklist(), // Chama função para obter checklist
-                observacoes: $('#observacoes').val()
-            };
-            // FIM COLETA DE DADOS
+document.getElementById("colaborador").addEventListener("change", () => {
+  document.getElementById("assinaturaColaborador").innerText = document.getElementById("colaborador").value;
+});
 
-            console.log('📦 Dados preparados para envio:', dados);
+// ======= FOTO DO PAINEL =======
+document.getElementById("fotoPainel").addEventListener("change", function() {
+  const file = this.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById("preview").src = e.target.result;
+      document.getElementById("preview").style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  }
+});
 
-            try {
-                // INÍCIO REQUISIÇÃO: Enviar dados via POST
-                const response = await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(dados) // Converte dados para JSON
-                });
-                // FIM REQUISIÇÃO Enviar dados
+// ======= BOTÕES =======
+function voltarTela() {
+  document.getElementById("rotaTipo").value = "";
+  window.scrollTo(0,0);
+}
+function limparFormulario() {
+  document.getElementById("formulario").reset();
+  limparAssinatura();
+  document.getElementById("preview").style.display = "none";
+  atualizarDataHora();
+}
 
-                console.log('📨 Resposta do servidor:', response.status);
+// ======= GOOGLE SHEETS =======
+async function getLastKM(veiculo) {
+  const url = `${WEBAPP_URL}?action=getLastKM&veiculo=${encodeURIComponent(veiculo)}`;
+  const res = await fetch(url);
+  const json = await res.json();
+  return Number(json.ultimoKM || 0);
+}
+async function sendToSheets(dados) {
+  const res = await fetch(WEBAPP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados)
+  });
+  return res.json();
+}
 
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status}`);
-                }
+// ======= ENVIO =======
+document.getElementById("formulario").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
 
-                const resultado = await response.json();
-                console.log('✅ Resposta JSON:', resultado);
+  const veiculo = document.getElementById("veiculo").value;
+  const km = Number(document.getElementById("km").value);
+  const ultimoKM = await getLastKM(veiculo);
 
-                // Processa resposta do servidor
-                if (resultado.success) {
-                    mostrarMensagem('✅ Registro salvo com sucesso!', 'success');
-                    limparFormulario(); // Limpa formulário após sucesso
-                } else {
-                    throw new Error(resultado.error || 'Erro desconhecido');
-                }
+  if (km < ultimoKM) {
+    alert(`A quilometragem informada (${km}) é menor que a última registrada (${ultimoKM}).`);
+    return;
+  }
 
-            } catch (error) {
-                // TRATAMENTO DE ERRO: Envio do formulário
-                console.error('❌ Erro ao enviar formulário:', error);
-                mostrarMensagem(`❌ Erro: ${error.message}`, 'danger');
-            } finally {
-                mostrarLoading(false); // Esconde loading
-            }
-        }
-        // FIM FUNÇÃO Enviar formulário completo
+  const dados = {
+    data: document.getElementById("dataAtual").value,
+    hora: document.getElementById("horaAtual").value,
+    tipoRegistro: document.getElementById("rotaTipo").value,
+    colaborador: document.getElementById("colaborador").value,
+    tipoVeiculo: document.getElementById("tipoVeiculo").value,
+    veiculo,
+    placa: document.getElementById("placa").value,
+    km,
+    fotoPainel: document.getElementById("preview").src || "",
+    assinatura: canvas.toDataURL()
+  };
 
-        // INÍCIO FUNÇÃO: Obter itens do checklist selecionados
-        function obterChecklist() {
-            const itens = [];
-            
-            // Verifica cada checkbox e adiciona se estiver marcado
-            if ($('#combustivel').is(':checked')) itens.push('Combustível');
-            if ($('#oleo').is(':checked')) itens.push('Óleo');
-            if ($('#pneus').is(':checked')) itens.push('Pneus');
-            if ($('#freios').is(':checked')) itens.push('Freios');
-            if ($('#documentos').is(':checked')) itens.push('Documentos');
-            
-            console.log(`📋 Checklist selecionado: ${itens.join(', ')}`);
-            return itens.join(', '); // Retorna como string separada por vírgula
-        }
-        // FIM FUNÇÃO Obter checklist
-
-        // INÍCIO FUNÇÃO: Limpar todos os campos do formulário
-        function limparFormulario() {
-            console.log('🧹 Limpando formulário...');
-            
-            // Reseta o formulário
-            $('#checklistForm')[0].reset();
-            
-            // Define data e hora atuais novamente
-            const agora = new Date();
-            $('#data').val(agora.toISOString().split('T')[0]);
-            $('#hora').val(agora.toTimeString().split(' ')[0].substring(0, 5));
-            
-            // Limpa mensagens
-            $('#mensagens').empty();
-            
-            console.log('✅ Formulário limpo');
-        }
-        // FIM FUNÇÃO Limpar formulário
-
-        // INÍCIO FUNÇÃO: Mostrar/esconder indicador de carregamento
-        function mostrarLoading(mostrar) {
-            if (mostrar) {
-                $('#loading').show(); // Exibe loading
-                console.log('⏳ Loading exibido');
-            } else {
-                $('#loading').hide(); // Esconde loading
-                console.log('✅ Loading escondido');
-            }
-        }
-        // FIM FUNÇÃO Mostrar loading
-
-        // INÍCIO FUNÇÃO: Exibir mensagens para o usuário
-        function mostrarMensagem(mensagem, tipo = 'info') {
-            console.log(`💬 Mensagem [${tipo}]: ${mensagem}`);
-            
-            // Remove mensagens anteriores
-            $('#mensagens').empty();
-            
-            // Cria e exibe nova mensagem
-            const alerta = $(`
-                <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
-                    ${mensagem}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            `);
-            
-            $('#mensagens').append(alerta);
-            
-            // Remove automaticamente após 5 segundos (exceto para errors)
-            if (tipo !== 'danger') {
-                setTimeout(() => {
-                    alerta.alert('close');
-                }, 5000);
-            }
-        }
-        // FIM FUNÇÃO Mostrar mensagem
-
-    </script>
-    <!-- FIM JAVASCRIPT DA APLICAÇÃO -->
-
+  await sendToSheets(dados);
+  alert("Formulário enviado com sucesso!");
+  limparFormulario();
+});
+</script>
 </body>
 </html>
