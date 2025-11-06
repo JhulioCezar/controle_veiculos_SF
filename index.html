@@ -15,6 +15,12 @@
   <!-- 🔥 ADICIONANDO SUPABASE -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+  <!-- 🔥 CONFIGURAÇÕES PWA PARA iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Controle Veículos">
+  <link rel="apple-touch-icon" href="icon-512x512.png">
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -104,6 +110,23 @@
       border-radius: 6px;
       display: none;
     }
+    
+    /* 🔥 ESTILO DO BOTÃO DE INSTALAR */
+    #install-btn {
+      display: none;
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 9999;
+      background: #2b6cb0;
+      color: #fff;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+      cursor: pointer;
+      font-weight: 700;
+    }
   </style>
 </head>
 
@@ -187,10 +210,41 @@
     </form>
   </div>
 
+  <!-- 🔥 BOTÃO DE INSTALAR PWA -->
+  <button id="install-btn">📱 Instalar App</button>
+
   <script>
+    // 🔥 CÓDIGO DO BOTÃO DE INSTALAR PWA
+    let deferredPrompt;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('install-btn').style.display = 'block';
+    });
+
+    document.getElementById('install-btn').addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        document.getElementById('install-btn').style.display = 'none';
+        console.log('✅ App instalado com sucesso!');
+      }
+      
+      deferredPrompt = null;
+    });
+
+    window.addEventListener('appinstalled', () => {
+      document.getElementById('install-btn').style.display = 'none';
+      deferredPrompt = null;
+    });
+
     // ---------- PWA ----------
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js")
+      navigator.serviceWorker.register("./sw.js")
         .then(() => console.log("Service Worker registrado!"))
         .catch(err => console.log("Erro ao registrar o Service Worker:", err));
     }
