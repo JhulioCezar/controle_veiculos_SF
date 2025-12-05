@@ -8,18 +8,13 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2b6cb0">
 
-  <!-- 🔥 ADICIONANDO BIBLIOTECA PDF -->
+  <!-- 🔥 BIBLIOTECA PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-  <!-- 🔥 ADICIONANDO SUPABASE -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- 🔥 CONFIGURAÇÕES PWA PARA iOS -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Controle Veículos">
-  <link rel="apple-touch-icon" href="icon-512x512.png">
+  <!-- 🔥 FIREBASE CORRIGIDO (versão 8.10.1) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <style>
     body {
@@ -62,6 +57,12 @@
       border-radius: 6px;
       border: 1px solid #ccc;
       font-size: 15px;
+      transition: all 0.3s;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: #2b6cb0;
+      box-shadow: 0 0 0 2px rgba(43, 108, 176, 0.2);
     }
     button {
       margin-top: 15px;
@@ -73,6 +74,7 @@
       color: white;
       font-size: 16px;
       cursor: pointer;
+      transition: background-color 0.3s;
     }
     button:hover {
       background-color: #1d4f91;
@@ -110,22 +112,17 @@
       border-radius: 6px;
       display: none;
     }
-    
-    /* 🔥 ESTILO DO BOTÃO DE INSTALAR */
-    #install-btn {
-      display: none;
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      z-index: 9999;
-      background: #2b6cb0;
-      color: #fff;
-      border: none;
-      padding: 12px 16px;
-      border-radius: 12px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-      cursor: pointer;
-      font-weight: 700;
+    .km-valido {
+      border-color: #28a745 !important;
+      background-color: #d4edda !important;
+    }
+    .km-alerta {
+      border-color: #ffc107 !important;
+      background-color: #fff3cd !important;
+    }
+    .km-invalido {
+      border-color: #dc3545 !important;
+      background-color: #f8d7da !important;
     }
   </style>
 </head>
@@ -184,7 +181,7 @@
       <input type="text" id="placa" readonly>
 
       <label>Quilometragem:</label>
-      <input type="number" id="km" required>
+      <input type="number" id="km" required placeholder="Digite a quilometragem atual">
 
       <label>Foto do Painel (KM):</label>
       <input type="file" id="fotoPainel" accept="image/*" capture="environment" required onchange="previewFoto(event)">
@@ -196,7 +193,7 @@
 
       <p id="nomeAssinatura" style="text-align:center;font-weight:bold;margin-top:10px;"></p>
 
-      <!-- 🔥 ADICIONANDO LOADING DO PDF -->
+      <!-- 🔥 LOADING DO PDF -->
       <div id="loadingPDF" class="loading-pdf">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">Gerando PDF...</span>
@@ -210,41 +207,10 @@
     </form>
   </div>
 
-  <!-- 🔥 BOTÃO DE INSTALAR PWA -->
-  <button id="install-btn">📱 Instalar App</button>
-
   <script>
-    // 🔥 CÓDIGO DO BOTÃO DE INSTALAR PWA
-    let deferredPrompt;
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      document.getElementById('install-btn').style.display = 'block';
-    });
-
-    document.getElementById('install-btn').addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        document.getElementById('install-btn').style.display = 'none';
-        console.log('✅ App instalado com sucesso!');
-      }
-      
-      deferredPrompt = null;
-    });
-
-    window.addEventListener('appinstalled', () => {
-      document.getElementById('install-btn').style.display = 'none';
-      deferredPrompt = null;
-    });
-
     // ---------- PWA ----------
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js")
+      navigator.serviceWorker.register("sw.js")
         .then(() => console.log("Service Worker registrado!"))
         .catch(err => console.log("Erro ao registrar o Service Worker:", err));
     }
@@ -253,8 +219,7 @@
     const veiculos = {
       carro: [
         { nome: "Fiat Toro", placa: "QWO9F32" },
-        { nome: "Volkswagen Polo", placa: "QWQ0J58" },
-	{ nome: "Volkswagen Saveiro", placa: "STY1F04" }
+        { nome: "Volkswagen Saveiro", placa: "STY1F04" }
       ],
       moto: []
     };
@@ -262,30 +227,34 @@
     // ---------- VARIÁVEIS GLOBAIS ----------
     let fotoPainelDataURL = null;
     let signaturePad, ctx, desenhando = false;
+    let db = null; // 🔥 Firebase Firestore
 
-    // ========== SUPABASE CONFIGURAÇÃO ==========
-let supabase; // 🔥 Mude para 'let' e inicialize depois
-
-// Função para inicializar o Supabase
-function inicializarSupabase() {
-    try {
-        const SUPABASE_URL = 'https://thkswytkcxscizlmyehr.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoa3N3eXRrY3hzY2l6bG15ZWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTU0MDMsImV4cCI6MjA3NzkzMTQwM30.u6PA4JtuKRTld2xQyUUq9n9YWAQf0uAQg-TS4x2na1c';
-        
-        // 🔥 VERIFICAR SE A BIBLIOTECA SUPABASE FOI CARREGADA
-        if (typeof window.supabase !== 'undefined') {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log('✅ Supabase inicializado com sucesso');
-            return true;
-        } else {
-            console.error('❌ Biblioteca Supabase não carregada');
-            return false;
+    // ========== FIREBASE CONFIGURAÇÃO ==========
+    function inicializarFirebase() {
+        try {
+            const firebaseConfig = {
+                apiKey: "AIzaSyDPUrtX4_ZbZtHfPhBE1R9SmXL4YXknTMs",
+                authDomain: "controle-veiculos-4a15c.firebaseapp.com",
+                projectId: "controle-veiculos-4a15c",
+                storageBucket: "controle-veiculos-4a15c.firebasestorage.app",
+                messagingSenderId: "249949766074",
+                appId: "1:249949766074:web:3f2431f5e2fe94336c7ac3"
+            };
+            
+            // 🔥 INICIALIZAR CORRETAMENTE
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            
+            db = firebase.firestore();
+            console.log('✅ Firebase inicializado com sucesso');
+            return db;
+        } catch (error) {
+            console.error('❌ Erro ao inicializar Firebase:', error);
+            alert('Erro ao conectar com o banco de dados. Recarregue a página.');
+            return null;
         }
-    } catch (error) {
-        console.error('❌ Erro ao inicializar Supabase:', error);
-        return false;
     }
-}
 
     // ---------- FUNÇÕES DO SISTEMA ----------
     function carregarVeiculos() {
@@ -313,6 +282,15 @@ function inicializarSupabase() {
       if (!tipo) {
         alert("Selecione o tipo de rota para continuar.");
         return;
+      }
+      
+      // 🔥 INICIALIZAR FIREBASE AQUI (se ainda não foi)
+      if (!db) {
+        db = inicializarFirebase();
+        if (!db) {
+          alert("Erro ao conectar com o banco de dados. Recarregue a página.");
+          return;
+        }
       }
       
       // ATUALIZAR DATA/HORA NO MOMENTO DA SELEÇÃO
@@ -458,135 +436,129 @@ function inicializarSupabase() {
       document.getElementById("nomeAssinatura").textContent = e.target.value;
     });
 
-    // Função para fazer upload de imagens
-async function uploadImagem(file, pasta, nomeArquivo) {
-    try {
-        // 🔥 VERIFICAR SE SUPABASE FOI INICIALIZADO
-        if (!supabase) {
-            const inicializado = inicializarSupabase();
-            if (!inicializado) {
-                console.error('Supabase não inicializado para upload');
+    // ========== FUNÇÃO CORRIGIDA PARA BUSCAR ÚLTIMO KM ==========
+    async function buscarUltimoKM(placaVeiculo) {
+        try {
+            if (!db) {
+                db = inicializarFirebase();
+                if (!db) {
+                    console.log('Firebase não inicializado');
+                    return null;
+                }
+            }
+            
+            console.log('🔍 Buscando último KM para placa:', placaVeiculo);
+            
+            const querySnapshot = await db.collection('checklists')
+                .where('placa', '==', placaVeiculo)
+                .orderBy('created_at', 'desc')
+                .limit(1)
+                .get();
+            
+            if (!querySnapshot.empty) {
+                const ultimoRegistro = querySnapshot.docs[0].data();
+                const ultimoKM = ultimoRegistro.quilometragem;
+                console.log('✅ Último KM encontrado:', ultimoKM);
+                return ultimoKM;
+            } else {
+                console.log('📭 Nenhum registro anterior encontrado para esta placa');
                 return null;
             }
-        }
-   
-        console.log('Fazendo upload:', nomeArquivo);
-        
-        const { data, error } = await supabase.storage
-          .from('checklists')
-          .upload(`${pasta}/${nomeArquivo}`, file);
-        
-        if (error) {
-            console.error('Erro no upload:', error);
+        } catch (error) {
+            console.error('❌ Erro ao buscar último KM:', error);
+            
+            // Se o erro for de índice faltante
+            if (error.code === 'failed-precondition') {
+                console.log('⚠️ Índice necessário. Buscando de forma alternativa...');
+                return await buscarUltimoKMSemIndice(placaVeiculo);
+            }
+            
             return null;
         }
-        
-        // Obter URL pública da imagem
-        const { data: urlData } = supabase.storage
-          .from('checklists')
-          .getPublicUrl(data.path);
-        
-        console.log('Upload realizado:', urlData.publicUrl);
-        return urlData.publicUrl;
-    } catch (error) {
-        console.error('Erro no upload:', error);
-        return null;
     }
-}
 
-// FUNÇÃO PARA BUSCAR ÚLTIMO KM DO VEÍCULO
-async function buscarUltimoKM(placaVeiculo) {
-    try {
-        console.log('Buscando último KM para placa:', placaVeiculo);
-        
-        const { data, error } = await supabase
-            .from('checklists')
-            .select('quilometragem, created_at')
-            .eq('placa', placaVeiculo)
-            .order('created_at', { ascending: false })
-            .limit(1);
-        
-        if (error) {
-            console.error('Erro ao buscar último KM:', error);
-            return null;
-        }
-        
-        if (data && data.length > 0) {
-            console.log('Último KM encontrado:', data[0].quilometragem);
-            return data[0].quilometragem;
-        } else {
-            console.log('Nenhum registro anterior encontrado para esta placa');
-            return null;
-        }
-    } catch (error) {
-        console.error('Erro ao buscar último KM:', error);
-        return null;
-    }
-}
-// 🔥 🔥 🔥 FIM DA INSERÇÃO 🔥 🔥 🔥
-
-// 🔥 FUNÇÃO ATUALIZADA: Salvar dados no banco com verificação de conexão
-async function salvarChecklist(dados) {
-    try {
-        // 🔥 VERIFICAR SE SUPABASE FOI INICIALIZADO
-        if (!supabase) {
-            const inicializado = inicializarSupabase();
-            if (!inicializado) {
-                alert('❌ Erro de conexão. Verifique sua internet e tente novamente.');
+    // FUNÇÃO ALTERNATIVA SE O ÍNDICE NÃO EXISTIR
+    async function buscarUltimoKMSemIndice(placaVeiculo) {
+        try {
+            console.log('🔄 Buscando KM sem índice para:', placaVeiculo);
+            
+            const querySnapshot = await db.collection('checklists')
+                .where('placa', '==', placaVeiculo)
+                .get();
+            
+            if (!querySnapshot.empty) {
+                // Ordenar manualmente por data
+                const registros = querySnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        quilometragem: data.quilometragem,
+                        created_at: data.created_at || new Date(0).toISOString()
+                    };
+                });
+                
+                registros.sort((a, b) => {
+                    return new Date(b.created_at) - new Date(a.created_at);
+                });
+                
+                const ultimoKM = registros[0].quilometragem;
+                console.log('✅ Último KM encontrado (sem índice):', ultimoKM);
+                return ultimoKM;
+            } else {
+                console.log('📭 Nenhum registro encontrado');
                 return null;
             }
-        }
-        
-        console.log('Salvando no banco:', dados);
-        
-        // DADOS COM AS COLUNAS EXATAS DA SUA TABELA
-        const dadosParaSalvar = {
-            tipo_rota: dados.tipo_rota,
-            data: dados.data,
-            hora: dados.hora,
-            colaborador: dados.colaborador,
-            tipo_veiculo: dados.tipo_veiculo,
-            veiculo: dados.veiculo,
-            placa: dados.placa,
-            quilometragem: dados.quilometragem,
-            foto_painel_url: dados.foto_painel_url,
-            assinatura_url: dados.assinatura_url,
-            created_at: new Date().toISOString()
-        };
-        
-        const { data, error } = await supabase
-          .from('checklists')
-          .insert([dadosParaSalvar])
-          .select();
-        
-        if (error) {
-            console.error('Erro ao salvar:', error);
-            alert('Erro ao salvar no banco: ' + error.message);
+        } catch (error) {
+            console.error('❌ Erro na busca alternativa:', error);
             return null;
         }
-        
-        console.log('Dados salvos com sucesso:', data);
-        return data;
-    } catch (error) {
-        console.error('Erro ao salvar no banco:', error);
-        alert('Erro de conexão: ' + error.message);
-        return null;
     }
-}
 
-    // Converter assinatura (DataURL) para arquivo (Blob)
-    function dataURLtoBlob(dataURL) {
-      const arr = dataURL.split(',');
-      const mime = arr[0].match(/:(.*?);/)[1];
-      const bstr = atob(arr[1]);
-      let n = bstr.length;
-      const u8arr = new Uint8Array(n);
-      
-      while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-      }
-      
-      return new Blob([u8arr], { type: mime });
+    // FUNÇÃO PARA SALVAR CHECKLIST NO FIRESTORE (COM FOTOS BASE64)
+    async function salvarChecklistFirebase(dados) {
+        try {
+            if (!db) {
+                db = inicializarFirebase();
+                if (!db) {
+                    alert('❌ Erro ao conectar com o banco. Verifique sua conexão.');
+                    return null;
+                }
+            }
+            
+            console.log('Salvando no Firestore:', dados);
+            
+            // Adicionar timestamp
+            const dadosCompletos = {
+                tipo_rota: dados.tipo_rota,
+                data: dados.data,
+                hora: dados.hora,
+                colaborador: dados.colaborador,
+                tipo_veiculo: dados.tipo_veiculo,
+                veiculo: dados.veiculo,
+                placa: dados.placa,
+                quilometragem: dados.quilometragem,
+                foto_painel_base64: dados.foto_painel_base64,
+                assinatura_base64: dados.assinatura_base64,
+                created_at: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            const docRef = await db.collection('checklists').add(dadosCompletos);
+            console.log('✅ Documento salvo com ID:', docRef.id);
+            return docRef.id;
+        } catch (error) {
+            console.error('❌ Erro ao salvar no Firestore:', error);
+            alert('❌ Erro ao salvar: ' + error.message);
+            return null;
+        }
+    }
+
+    // CONVERTER ARQUIVO PARA BASE64
+    function converterParaBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     }
 
     // 🔥 FUNÇÃO AUXILIAR: VERIFICAR SE A ASSINATURA ESTÁ EM BRANCO
@@ -600,261 +572,365 @@ async function salvarChecklist(dados) {
         return true;
     }
 
-    // 🔥 FUNÇÃO ATUALIZADA: GERAR PDF + SALVAR NO SUPABASE COM VALIDAÇÃO DE KM
-async function gerarESalvarPDF() {
-    const campos = document.querySelectorAll("#formulario [required]");
-    for (const campo of campos) {
-        if (!campo.value) {
-            alert("Preencha todos os campos obrigatórios antes de gerar o PDF!");
+    // ========== VALIDAÇÃO DE KM EM TEMPO REAL ==========
+    document.getElementById('km').addEventListener('blur', async function() {
+        await validarKMEmTempoReal();
+    });
+
+    document.getElementById('placa').addEventListener('change', async function() {
+        await validarKMEmTempoReal();
+    });
+
+    async function validarKMEmTempoReal() {
+        const placa = document.getElementById('placa').value;
+        const kmInput = document.getElementById('km');
+        const kmDigitado = parseInt(kmInput.value);
+        
+        if (!placa || !kmDigitado || isNaN(kmDigitado)) {
+            kmInput.classList.remove('km-valido', 'km-alerta', 'km-invalido');
             return;
         }
-    }
-    
-    // Verificar se a foto foi capturada
-    if (!fotoPainelDataURL) {
-        alert("Por favor, capture a foto do painel antes de gerar o PDF!");
-        return;
-    }
-    
-    // 🔥 🔥 🔥 NOVA VALIDAÇÃO DE KM 🔥 🔥 🔥
-    const placa = document.getElementById('placa').value;
-    const kmAtual = parseInt(document.getElementById('km').value);
-    
-    if (placa) {
+        
+        console.log(`🔄 Validando KM: ${kmDigitado} para placa: ${placa}`);
+        
         const ultimoKM = await buscarUltimoKM(placa);
         
-        if (ultimoKM !== null && kmAtual < ultimoKM) {
-            alert(`❌ ATENÇÃO: Quilometragem inválida!\n\nÚltimo KM registrado: ${ultimoKM} km\nKM informado: ${kmAtual} km\n\nA quilometragem não pode ser menor que a anterior.`);
-            return;
+        if (ultimoKM !== null) {
+            if (kmDigitado < ultimoKM) {
+                kmInput.classList.remove('km-valido', 'km-alerta');
+                kmInput.classList.add('km-invalido');
+                kmInput.title = `ATENÇÃO: KM menor que o último registro (${ultimoKM} km)`;
+                mostrarAlertaKM(`⚠️ Quilometragem menor que o último registro (${ultimoKM} km)`);
+            } else if (kmDigitado > ultimoKM + 1000) {
+                kmInput.classList.remove('km-valido', 'km-invalido');
+                kmInput.classList.add('km-alerta');
+                kmInput.title = `ATENÇÃO: KM muito acima do último registro (${ultimoKM} km)`;
+                mostrarAlertaKM(`⚠️ Diferença grande: +${kmDigitado - ultimoKM} km do último registro`);
+            } else {
+                kmInput.classList.remove('km-alerta', 'km-invalido');
+                kmInput.classList.add('km-valido');
+                kmInput.title = `OK: KM válido (último: ${ultimoKM} km)`;
+            }
+        } else {
+            kmInput.classList.remove('km-valido', 'km-alerta', 'km-invalido');
+            kmInput.title = 'Primeiro registro para este veículo';
+        }
+    }
+
+    function mostrarAlertaKM(mensagem) {
+        const alertaAnterior = document.getElementById('alerta-km');
+        if (alertaAnterior) {
+            alertaAnterior.remove();
         }
         
-        // VALIDAÇÃO ADICIONAL: KM muito diferente do anterior (opcional)
-        if (ultimoKM !== null && kmAtual > ultimoKM + 1000) {
-            const confirmar = confirm(`⚠️ ATENÇÃO: Quilometragem muito alta!\n\nÚltimo KM: ${ultimoKM} km\nKM atual: ${kmAtual} km\nDiferença: ${kmAtual - ultimoKM} km\n\nConfirmar mesmo assim?`);
-            if (!confirmar) {
+        const alerta = document.createElement('div');
+        alerta.id = 'alerta-km';
+        alerta.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #f5c6cb;
+            z-index: 1000;
+            max-width: 300px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        `;
+        alerta.innerHTML = `
+            <strong>⚠️ Validação de KM</strong><br>
+            ${mensagem}
+            <button onclick="this.parentElement.remove()" 
+                    style="float:right; background:none; border:none; color:#721c24; cursor:pointer">
+                ✕
+            </button>
+        `;
+        
+        document.body.appendChild(alerta);
+        
+        setTimeout(() => {
+            if (alerta.parentElement) {
+                alerta.remove();
+            }
+        }, 10000);
+    }
+
+    // 🔥 FUNÇÃO ATUALIZADA: GERAR PDF + SALVAR NO FIRESTORE COM VALIDAÇÃO DE KM
+    async function gerarESalvarPDF() {
+        const campos = document.querySelectorAll("#formulario [required]");
+        for (const campo of campos) {
+            if (!campo.value) {
+                alert("Preencha todos os campos obrigatórios antes de gerar o PDF!");
                 return;
             }
         }
         
-        // PRIMEIRO REGISTRO - Mostrar informação
-        if (ultimoKM === null) {
-            alert(`✅ Primeiro registro para este veículo!\nKM inicial: ${kmAtual} km`);
+        // Verificar se a foto foi capturada
+        if (!fotoPainelDataURL) {
+            alert("Por favor, capture a foto do painel antes de gerar o PDF!");
+            return;
         }
-    }
-    // 🔥 🔥 🔥 FIM DA VALIDAÇÃO 🔥 🔥 🔥
-      
-      // Verificar se a foto foi capturada
-      if (!fotoPainelDataURL) {
-        alert("Por favor, capture a foto do painel antes de gerar o PDF!");
-        return;
-      }
-      
-      // ATUALIZAR DATA/HORA FINAL ANTES DO PDF
-      atualizarDataHora();
-      
-      // Mostrar loading
-      document.getElementById('loadingPDF').style.display = 'block';
-      
-      try {
-        // Usar a biblioteca jsPDF
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
         
-        // Dados do formulário
-        const tipoRota = document.getElementById('rotaTipo').value;
-        const data = document.getElementById('dataAtual').value;
-        const hora = document.getElementById('horaAtual').value;
-        const colaborador = document.getElementById('colaborador').value;
-        const tipoVeiculo = document.getElementById('tipoVeiculo').value;
-        const veiculo = document.getElementById('veiculo').value;
+        // 🔥 VALIDAÇÃO DE KM MELHORADA
         const placa = document.getElementById('placa').value;
-        const km = document.getElementById('km').value;
-        
-        // CONFIGURAÇÕES DE LAYOUT
-        const margin = 20;
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const contentWidth = pageWidth - (margin * 2);
-        let yPos = margin;
-        
-        // --- CABEÇALHO APENAS COM LOGOMARCA ---
-        const logoUrl = 'https://i.imgur.com/SEr4lkm.png';
-        
-        // Adicionar logomarca centralizada
-        doc.addImage(logoUrl, 'PNG', pageWidth / 2 - 30, yPos, 60, 22);
-        yPos += 30;
-        
-        // Título principal
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text('Controle de Uso de Veículos', pageWidth / 2, yPos, { align: 'center' });
-        yPos += 15;
-        
-        // --- SEÇÃO DE DADOS ---
-        doc.setFontSize(10);
-        
-        // Função para adicionar campo
-        function adicionarCampo(rotulo, valor, y) {
-            // Label
-            doc.setFont(undefined, 'bold');
-            doc.text(rotulo, margin, y);
+        const kmAtual = parseInt(document.getElementById('km').value);
+
+        if (placa && !isNaN(kmAtual)) {
+            const ultimoKM = await buscarUltimoKM(placa);
             
-            // Valor
-            doc.setFont(undefined, 'normal');
-            doc.text(valor.toString(), margin, y + 5);
-            
-            // Linha divisória
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.3);
-            doc.line(margin, y + 8, pageWidth - margin, y + 8);
-            
-            return y + 12;
-        }
-        
-        // Adicionar campos com linhas divisórias
-        yPos = adicionarCampo('Data:', data, yPos);
-        yPos = adicionarCampo('Hora:', hora, yPos);
-        yPos = adicionarCampo('Colaborador:', colaborador, yPos);
-        yPos = adicionarCampo('Tipo de Veículo:', tipoVeiculo.charAt(0).toUpperCase() + tipoVeiculo.slice(1), yPos);
-        yPos = adicionarCampo('Veículo:', veiculo, yPos);
-        yPos = adicionarCampo('Placa:', placa, yPos);
-        yPos = adicionarCampo('Quilometragem:', km + ' km', yPos);
-        
-        yPos += 3;
-        
-        // --- FOTO DO PAINEL (TAMANHO REDUZIDO) ---
-        doc.setFont(undefined, 'bold');
-        doc.text('Foto do Painel (KM):', margin, yPos);
-        yPos += 6;
-        
-        // Imagem com tamanho reduzido
-        const imgWidth = 40;
-        const imgHeight = 40; // Altura fixa reduzida
-        
-        // Adicionar retângulo para a imagem
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.5);
-        doc.rect(margin, yPos, imgWidth, imgHeight);
-        
-        // Adicionar a imagem redimensionada
-        const imgProps = doc.getImageProperties(fotoPainelDataURL);
-        const finalImgWidth = imgWidth - 4;
-        const finalImgHeight = imgHeight - 4;
-        
-        doc.addImage(fotoPainelDataURL, 'JPEG', margin + 2, yPos + 2, finalImgWidth, finalImgHeight);
-        
-        yPos += imgHeight + 10;
-        
-        // --- ASSINATURA DIGITAL ---
-        doc.setFont(undefined, 'bold');
-        doc.text('Assinatura Digital:', pageWidth / 2, yPos, { align: 'center' }); // 🔥 CENTRALIZADO
-        yPos += 6;
-        
-        // Adicionar retângulo para assinatura
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.5);
-        const signatureHeight = 25;
-        doc.rect(margin, yPos, contentWidth, signatureHeight);
-        
-        // Adicionar assinatura se existir
-        const signatureDataURL = signaturePad.toDataURL();
-        if (signatureDataURL && !signaturePadBlank()) {
-            try {
-                const signatureProps = doc.getImageProperties(signatureDataURL);
-                const signatureWidth = contentWidth - 10;
-                const calcSignatureHeight = (signatureProps.height * signatureWidth) / signatureProps.width;
+            if (ultimoKM !== null) {
+                // Validação 1: KM não pode ser menor
+                if (kmAtual < ultimoKM) {
+                    const mensagem = `❌ ATENÇÃO: Quilometragem inválida!\n\n` +
+                                    `Último KM registrado: ${ultimoKM} km\n` +
+                                    `KM informado: ${kmAtual} km\n` +
+                                    `Diferença: -${ultimoKM - kmAtual} km\n\n` +
+                                    `A quilometragem não pode ser menor que a anterior.`;
+                    
+                    alert(mensagem);
+                    document.getElementById('km').focus();
+                    document.getElementById('km').classList.add('km-invalido');
+                    return;
+                }
                 
-                // Ajustar altura para caber no retângulo
-                const finalSignatureHeight = Math.min(calcSignatureHeight, signatureHeight - 4);
+                // Validação 2: KM muito diferente (alerta)
+                const diferenca = kmAtual - ultimoKM;
+                if (diferenca > 1000) {
+                    const confirmar = confirm(
+                        `⚠️ ATENÇÃO: Quilometragem muito alta!\n\n` +
+                        `Último KM: ${ultimoKM} km\n` +
+                        `KM atual: ${kmAtual} km\n` +
+                        `Diferença: +${diferenca} km\n\n` +
+                        `Isso representa ${Math.round((diferenca / ultimoKM) * 100)}% de aumento.\n\n` +
+                        `Confirmar mesmo assim?`
+                    );
+                    
+                    if (!confirmar) {
+                        document.getElementById('km').focus();
+                        return;
+                    }
+                }
                 
-                doc.addImage(signatureDataURL, 'PNG', margin + 3, yPos + 3, signatureWidth - 6, finalSignatureHeight);
-            } catch (e) {
-                console.log('Erro ao adicionar assinatura:', e);
+                // Validação 3: KM igual (possível erro)
+                if (kmAtual === ultimoKM) {
+                    const confirmar = confirm(
+                        `ℹ️ KM igual ao último registro\n\n` +
+                        `Último KM: ${ultimoKM} km\n` +
+                        `KM atual: ${kmAtual} km\n\n` +
+                        `O KM é exatamente igual ao último registro.\n` +
+                        `Deseja continuar?`
+                    );
+                    
+                    if (!confirmar) {
+                        document.getElementById('km').focus();
+                        return;
+                    }
+                }
+                
+                console.log(`✅ KM validado: ${kmAtual} (último: ${ultimoKM}, diferença: +${kmAtual - ultimoKM} km)`);
+                
+            } else {
+                // Primeiro registro para este veículo
+                alert(`✅ Primeiro registro para este veículo!\n\n` +
+                      `Placa: ${placa}\n` +
+                      `KM inicial: ${kmAtual} km`);
             }
-        }
-        
-        yPos += signatureHeight + 8;
-        
-        // --- NOME DO COLABORADOR ---
-        doc.setFont(undefined, 'bold');
-        doc.setFontSize(9);
-        doc.text(colaborador, pageWidth / 2, yPos, { align: 'center' }); // 🔥 CENTRALIZADO
-        
-        // ✅ AGORA SALVAR TUDO NO SUPABASE
-        const timestamp = new Date().getTime();
-        const fileName = `Checklist_${veiculo.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
-        
-        // 1. Fazer upload da foto do painel
-        const fotoFile = document.getElementById('fotoPainel').files[0];
-        const fotoUrl = await uploadImagem(fotoFile, 'fotos', `painel_${timestamp}.jpg`);
-        
-        // 2. Fazer upload da assinatura (se existir)
-        let assinaturaUrl = null;
-        if (signatureDataURL && !signaturePadBlank()) {
-            const signatureBlob = dataURLtoBlob(signatureDataURL);
-            assinaturaUrl = await uploadImagem(signatureBlob, 'assinaturas', `assinatura_${timestamp}.png`);
-        }
-        
-        // 3. 🔥 SALVAR TODOS OS DADOS NO BANCO COM COLUNAS CORRETAS
-        const dadosChecklist = {
-            tipo_rota: tipoRota === 'inicio' ? 'INÍCIO' : 'FINAL',
-            data: data,
-            hora: hora,
-            colaborador: colaborador,
-            tipo_veiculo: tipoVeiculo,
-            veiculo: veiculo,
-            placa: placa,
-            quilometragem: parseInt(km),
-            foto_painel_url: fotoUrl,
-            assinatura_url: assinaturaUrl
-        };
-        
-        const resultado = await salvarChecklist(dadosChecklist);
-        
-        if (resultado) {
-          // 4. Salvar PDF localmente
-          doc.save(fileName);
-          alert('✅ PDF gerado e todos os dados salvos no sistema!');
         } else {
-          alert('❌ Erro ao salvar no banco de dados. O PDF foi gerado, mas os dados não foram salvos.');
+            alert("Por favor, preencha a placa e quilometragem corretamente.");
+            return;
         }
+          
+        // ATUALIZAR DATA/HORA FINAL ANTES DO PDF
+        atualizarDataHora();
         
-      } catch (error) {
-        console.error('Erro ao gerar PDF:', error);
-        alert('Erro ao gerar PDF. Tente novamente.');
-      } finally {
-        // Esconder loading
-        document.getElementById('loadingPDF').style.display = 'none';
-      }
+        // Mostrar loading
+        document.getElementById('loadingPDF').style.display = 'block';
+        
+        try {
+            // Usar a biblioteca jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Dados do formulário
+            const tipoRota = document.getElementById('rotaTipo').value;
+            const data = document.getElementById('dataAtual').value;
+            const hora = document.getElementById('horaAtual').value;
+            const colaborador = document.getElementById('colaborador').value;
+            const tipoVeiculo = document.getElementById('tipoVeiculo').value;
+            const veiculo = document.getElementById('veiculo').value;
+            const placa = document.getElementById('placa').value;
+            const km = document.getElementById('km').value;
+            
+            // CONFIGURAÇÕES DE LAYOUT
+            const margin = 20;
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const contentWidth = pageWidth - (margin * 2);
+            let yPos = margin;
+            
+            // --- CABEÇALHO APENAS COM LOGOMARCA ---
+            const logoUrl = 'https://i.imgur.com/SEr4lkm.png';
+            
+            // Adicionar logomarca centralizada
+            doc.addImage(logoUrl, 'PNG', pageWidth / 2 - 30, yPos, 60, 22);
+            yPos += 30;
+            
+            // Título principal
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text('Controle de Uso de Veículos', pageWidth / 2, yPos, { align: 'center' });
+            yPos += 15;
+            
+            // --- SEÇÃO DE DADOS ---
+            doc.setFontSize(10);
+            
+            // Função para adicionar campo
+            function adicionarCampo(rotulo, valor, y) {
+                // Label
+                doc.setFont(undefined, 'bold');
+                doc.text(rotulo, margin, y);
+                
+                // Valor
+                doc.setFont(undefined, 'normal');
+                doc.text(valor.toString(), margin, y + 5);
+                
+                // Linha divisória
+                doc.setDrawColor(200, 200, 200);
+                doc.setLineWidth(0.3);
+                doc.line(margin, y + 8, pageWidth - margin, y + 8);
+                
+                return y + 12;
+            }
+            
+            // Adicionar campos com linhas divisórias
+            yPos = adicionarCampo('Data:', data, yPos);
+            yPos = adicionarCampo('Hora:', hora, yPos);
+            yPos = adicionarCampo('Colaborador:', colaborador, yPos);
+            yPos = adicionarCampo('Tipo de Veículo:', tipoVeiculo.charAt(0).toUpperCase() + tipoVeiculo.slice(1), yPos);
+            yPos = adicionarCampo('Veículo:', veiculo, yPos);
+            yPos = adicionarCampo('Placa:', placa, yPos);
+            yPos = adicionarCampo('Quilometragem:', km + ' km', yPos);
+            
+            yPos += 3;
+            
+            // --- FOTO DO PAINEL (TAMANHO REDUZIDO) ---
+            doc.setFont(undefined, 'bold');
+            doc.text('Foto do Painel (KM):', margin, yPos);
+            yPos += 6;
+            
+            // Imagem com tamanho reduzido
+            const imgWidth = 40;
+            const imgHeight = 40;
+            
+            // Adicionar retângulo para a imagem
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.5);
+            doc.rect(margin, yPos, imgWidth, imgHeight);
+            
+            // Adicionar a imagem redimensionada
+            const imgProps = doc.getImageProperties(fotoPainelDataURL);
+            const finalImgWidth = imgWidth - 4;
+            const finalImgHeight = imgHeight - 4;
+            
+            doc.addImage(fotoPainelDataURL, 'JPEG', margin + 2, yPos + 2, finalImgWidth, finalImgHeight);
+            
+            yPos += imgHeight + 10;
+            
+            // --- ASSINATURA DIGITAL ---
+            doc.setFont(undefined, 'bold');
+            doc.text('Assinatura Digital:', pageWidth / 2, yPos, { align: 'center' });
+            yPos += 6;
+            
+            // Adicionar retângulo para assinatura
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.5);
+            const signatureHeight = 25;
+            doc.rect(margin, yPos, contentWidth, signatureHeight);
+            
+            // Adicionar assinatura se existir
+            const signatureDataURL = signaturePad.toDataURL();
+            if (signatureDataURL && !signaturePadBlank()) {
+                try {
+                    const signatureProps = doc.getImageProperties(signatureDataURL);
+                    const signatureWidth = contentWidth - 10;
+                    const calcSignatureHeight = (signatureProps.height * signatureWidth) / signatureProps.width;
+                    
+                    // Ajustar altura para caber no retângulo
+                    const finalSignatureHeight = Math.min(calcSignatureHeight, signatureHeight - 4);
+                    
+                    doc.addImage(signatureDataURL, 'PNG', margin + 3, yPos + 3, signatureWidth - 6, finalSignatureHeight);
+                } catch (e) {
+                    console.log('Erro ao adicionar assinatura:', e);
+                }
+            }
+            
+            yPos += signatureHeight + 8;
+            
+            // --- NOME DO COLABORADOR ---
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(9);
+            doc.text(colaborador, pageWidth / 2, yPos, { align: 'center' });
+            
+            // ✅ AGORA SALVAR TUDO NO FIRESTORE (COM BASE64)
+            const timestamp = new Date().getTime();
+            const fileName = `Checklist_${veiculo.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
+            
+            // 1. Converter foto para Base64
+            const fotoFile = document.getElementById('fotoPainel').files[0];
+            const fotoBase64 = await converterParaBase64(fotoFile);
+            
+            // 2. Pegar assinatura como Base64
+            let assinaturaBase64 = null;
+            if (signatureDataURL && !signaturePadBlank()) {
+                assinaturaBase64 = signatureDataURL;
+            }
+            
+            // 3. 🔥 SALVAR TODOS OS DADOS NO FIRESTORE
+            const dadosChecklist = {
+                tipo_rota: tipoRota === 'inicio' ? 'INÍCIO' : 'FINAL',
+                data: data,
+                hora: hora,
+                colaborador: colaborador,
+                tipo_veiculo: tipoVeiculo,
+                veiculo: veiculo,
+                placa: placa,
+                quilometragem: parseInt(km),
+                foto_painel_base64: fotoBase64,
+                assinatura_base64: assinaturaBase64
+            };
+            
+            const resultado = await salvarChecklistFirebase(dadosChecklist);
+            
+            if (resultado) {
+              // 4. Salvar PDF localmente
+              doc.save(fileName);
+              alert('✅ PDF gerado e todos os dados salvos no sistema!');
+            } else {
+              alert('❌ Erro ao salvar no banco de dados. O PDF foi gerado, mas os dados não foram salvos.');
+            }
+            
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+            alert('Erro ao gerar PDF. Tente novamente.');
+        } finally {
+            // Esconder loading
+            document.getElementById('loadingPDF').style.display = 'none';
+        }
     }
 
-// 🔥 🔥 🔥 INSERIR AQUI (OPCIONAL) 🔥 🔥 🔥
-// VALIDAÇÃO EM TEMPO REAL DO CAMPO KM
-document.getElementById('km').addEventListener('change', async function() {
-    const placa = document.getElementById('placa').value;
-    const kmDigitado = parseInt(this.value);
-    
-    if (placa && kmDigitado) {
-        const ultimoKM = await buscarUltimoKM(placa);
-        
-        if (ultimoKM !== null && kmDigitado < ultimoKM) {
-            alert(`⚠️ Quilometragem menor que o último registro (${ultimoKM} km)`);
-            this.style.borderColor = 'red';
-            this.style.backgroundColor = '#ffe6e6';
-        } else {
-            this.style.borderColor = '';
-            this.style.backgroundColor = '';
-        }
-    }
-});
-// 🔥 🔥 🔥 FIM DA INSERÇÃO OPCIONAL 🔥 🔥 🔥
-
-    // Inicializar assinatura quando a página carrega
+    // Inicializar Firebase quando a página carrega
     window.addEventListener('load', function() {
-    // Inicializar Supabase quando a página carregar
-    inicializarSupabase();
-    // A assinatura será inicializada quando o formulário for mostrado
-});
+        db = inicializarFirebase();
+        console.log('✅ Aplicação carregada. Firebase:', db ? 'OK' : 'Erro');
+        
+        // Testar conexão com Firestore
+        if (db) {
+            db.collection('checklists').limit(1).get()
+                .then(() => console.log('✅ Conexão Firestore OK'))
+                .catch(err => console.warn('⚠️ Aviso Firestore:', err.message));
+        }
+    });
   </script>
 </body>
 </html>
