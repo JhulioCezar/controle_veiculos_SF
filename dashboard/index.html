@@ -4,7 +4,1234 @@
     <meta charset="UTF-8">
     <title>Dashboard - Controle de Veículos</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>[file name]: dashboard.html
+[file content begin]
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Controle de Veículos</title>
+    
+    <!-- 🔥 SUPABASE -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+        }
+        
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #2b6cb0;
+        }
+        h1 { 
+            color: #2b6cb0; 
+            margin: 0;
+            font-size: 28px;
+        }
+        .logo {
+            height: 50px;
+        }
+        
+        /* STATUS BANCO */
+        .status-banco {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-left: 5px solid #2b6cb0;
+        }
+        .status-banco h3 {
+            margin: 0 0 10px 0;
+            color: #2b6cb0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* ESTATÍSTICAS */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 25px 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-top: 4px solid #2b6cb0;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .stat-numero {
+            font-size: 36px;
+            font-weight: bold;
+            color: #2b6cb0;
+            margin-bottom: 8px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* FILTROS */
+        .filtros {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .filtros h3 {
+            color: #2b6cb0;
+            margin: 0 0 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .filtro-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .filtro-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .filtro-item label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+        .filtro-item select,
+        .filtro-item input {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .filtro-item select:focus,
+        .filtro-item input:focus {
+            outline: none;
+            border-color: #2b6cb0;
+            box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
+        }
+        .filtro-botoes {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        /* TABELA */
+        .tabela-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background: #2b6cb0;
+            color: white;
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        /* BADGES */
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .badge-inicio { 
+            background: #d1fae5; 
+            color: #065f46; 
+            border: 1px solid #a7f3d0;
+        }
+        .badge-final { 
+            background: #fee2e2; 
+            color: #991b1b; 
+            border: 1px solid #fecaca;
+        }
+        
+        /* BOTÕES */
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary {
+            background: #2b6cb0;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1d4f91;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #565e64;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
+        }
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        .btn-info:hover {
+            background: #138496;
+        }
+        
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 12px 12px 0 0;
+        }
+        .modal-header h2 {
+            margin: 0;
+            color: #2b6cb0;
+        }
+        .modal-body {
+            padding: 30px;
+        }
+        
+        /* IMAGENS */
+        .imagem-container {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .imagem-container h4 {
+            margin: 0 0 10px 0;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .imagem-container img {
+            max-width: 100%;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+        }
+        
+        /* GRID DE DETALHES */
+        .detalhes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .detalhe-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .detalhe-item strong {
+            display: block;
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        .detalhe-item span {
+            font-size: 16px;
+            color: #333;
+        }
+        
+        /* RESPONSIVO */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .header {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+            .filtro-grid {
+                grid-template-columns: 1fr;
+            }
+            .filtro-botoes {
+                flex-wrap: wrap;
+            }
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+        
+        /* LOADING */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2b6cb0;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <div class="header">
+            <div>
+                <h1>📊 Dashboard - Controle de Veículos</h1>
+                <p style="color: #666; margin-top: 5px;">Sistema de monitoramento em tempo real</p>
+            </div>
+            <img src="https://i.imgur.com/SEr4lkm.png" alt="Logo" class="logo">
+        </div>
+        
+        <!-- STATUS DO BANCO -->
+        <div class="status-banco">
+            <h3>🔗 Conexão com Banco de Dados</h3>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div id="statusIndicator" style="width: 12px; height: 12px; border-radius: 50%; background: #ccc;"></div>
+                <span id="statusText">Conectando ao Supabase...</span>
+            </div>
+        </div>
+        
+        <!-- CONTROLES DO SISTEMA -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #2b6cb0; margin-bottom: 15px;">⚡ Ações Rápidas</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <button class="btn-success" onclick="exportarDados()">📥 Exportar CSV</button>
+                    <button class="btn-info" onclick="gerarRelatorio()">📋 Gerar Relatório</button>
+                    <button class="btn-warning" onclick="atualizarDashboard()">🔄 Atualizar</button>
+                </div>
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #2b6cb0; margin-bottom: 15px;">⚙️ Administração</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <button class="btn-danger" onclick="iniciarModoProducao()">🚀 Modo Produção</button>
+                    <button class="btn-secondary" onclick="limparDadosTeste()">🧹 Limpar Testes</button>
+                </div>
+                <p style="margin-top: 10px; color: #666; font-size: 12px;">
+                    <small>⚠️ Ações administrativas exigem confirmação</small>
+                </p>
+            </div>
+        </div>
+        
+        <!-- ESTATÍSTICAS -->
+        <div class="stats" id="stats">
+            <!-- Carregando... -->
+            <div class="stat-card">
+                <div class="spinner"></div>
+                <div class="stat-label">Carregando...</div>
+            </div>
+        </div>
+        
+        <!-- FILTROS -->
+        <div class="filtros">
+            <h3>🔍 Filtros Avançados</h3>
+            <div class="filtro-grid">
+                <div class="filtro-item">
+                    <label>Placa do Veículo</label>
+                    <input type="text" id="filtroPlaca" placeholder="Ex: QWO9F32">
+                </div>
+                <div class="filtro-item">
+                    <label>Colaborador</label>
+                    <select id="filtroColaborador">
+                        <option value="">Todos os colaboradores</option>
+                        <!-- Carregado dinamicamente -->
+                    </select>
+                </div>
+                <div class="filtro-item">
+                    <label>Período Inicial</label>
+                    <input type="date" id="filtroDataInicio">
+                </div>
+                <div class="filtro-item">
+                    <label>Período Final</label>
+                    <input type="date" id="filtroDataFim">
+                </div>
+                <div class="filtro-item">
+                    <label>Tipo de Rota</label>
+                    <select id="filtroTipoRota">
+                        <option value="">Todos os tipos</option>
+                        <option value="INÍCIO">Início de Rota</option>
+                        <option value="FINAL">Final de Rota</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filtro-botoes">
+                <button class="btn-primary" onclick="aplicarFiltros()">🔍 Aplicar Filtros</button>
+                <button class="btn-secondary" onclick="limparFiltros()">🗑️ Limpar Filtros</button>
+            </div>
+        </div>
+        
+        <!-- TABELA DE REGISTROS -->
+        <div class="tabela-container">
+            <div style="padding: 20px 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; color: #2b6cb0;">📋 Registros de Checklists</h3>
+                <div style="display: flex; gap: 10px;">
+                    <span id="contadorRegistros" style="color: #666; font-size: 14px;">Carregando...</span>
+                    <button class="btn-info" onclick="carregarChecklists()" style="padding: 8px 12px;">↻</button>
+                </div>
+            </div>
+            
+            <table id="tabelaChecklists">
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Veículo</th>
+                        <th>Placa</th>
+                        <th>Colaborador</th>
+                        <th>KM</th>
+                        <th>Tipo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaCorpo">
+                    <!-- Dados carregados via JavaScript -->
+                </tbody>
+            </table>
+            
+            <div style="padding: 15px 25px; text-align: center; color: #666; font-size: 14px;">
+                <span id="mensagemTabela">Carregando registros...</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL DE DETALHES -->
+    <div class="modal" id="detalhesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📄 Detalhes do Checklist</h2>
+                <button onclick="fecharModal()" style="background: none; border: none; font-size: 24px; color: #666; cursor: pointer;">×</button>
+            </div>
+            <div class="modal-body" id="modalConteudo">
+                <!-- Conteúdo carregado dinamicamente -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== VARIÁVEIS GLOBAIS ==========
+        let supabase = null;
+        let checklistsData = [];
+        
+        // ========== INICIALIZAÇÃO DO SUPABASE ==========
+        async function inicializarSupabase() {
+            try {
+                // Verificar se a configuração existe
+                if (typeof SUPABASE_CONFIG === 'undefined') {
+                    throw new Error('Configuração do Supabase não encontrada. Verifique supabase-config.js');
+                }
+                
+                // Criar cliente Supabase
+                supabase = window.supabase.createClient(
+                    SUPABASE_CONFIG.url,
+                    SUPABASE_CONFIG.anonKey
+                );
+                
+                // Testar conexão
+                const { data, error } = await supabase
+                    .from('checklists')
+                    .select('count', { count: 'exact', head: true });
+                
+                if (error) throw error;
+                
+                // Atualizar status
+                document.getElementById('statusIndicator').style.background = '#28a745';
+                document.getElementById('statusText').innerHTML = 
+                    `<strong>✅ Conectado ao Supabase</strong> | ${data || 0} registros disponíveis`;
+                
+                console.log('✅ Supabase inicializado com sucesso');
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar Supabase:', error);
+                
+                document.getElementById('statusIndicator').style.background = '#dc3545';
+                document.getElementById('statusText').innerHTML = 
+                    `<strong>❌ Erro de conexão:</strong> ${error.message}`;
+                
+                return false;
+            }
+        }
+        
+        // ========== CARREGAR ESTATÍSTICAS ==========
+        async function carregarEstatisticas() {
+            if (!supabase) return;
+            
+            try {
+                // Carregar todos os dados para estatísticas
+                const { data, error } = await supabase
+                    .from('checklists')
+                    .select('*');
+                
+                if (error) throw error;
+                
+                const total = data.length;
+                let inicios = 0, finais = 0;
+                let colaboradores = new Set();
+                let veiculos = new Set();
+                let placas = new Set();
+                let totalKM = 0;
+                
+                data.forEach(item => {
+                    if (item.tipo_rota === 'INÍCIO') inicios++;
+                    if (item.tipo_rota === 'FINAL') finais++;
+                    colaboradores.add(item.colaborador);
+                    veiculos.add(item.veiculo);
+                    placas.add(item.placa);
+                    totalKM += (item.km || 0);
+                });
+                
+                // Calcular média de KM por registro
+                const mediaKM = total > 0 ? (totalKM / total).toFixed(0) : 0;
+                
+                // Atualizar estatísticas
+                document.getElementById('stats').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-numero">${total}</div>
+                        <div class="stat-label">Total de Registros</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-numero">${inicios}</div>
+                        <div class="stat-label">Inícios de Rota</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-numero">${finais}</div>
+                        <div class="stat-label">Finais de Rota</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-numero">${colaboradores.size}</div>
+                        <div class="stat-label">Colaboradores</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-numero">${placas.size}</div>
+                        <div class="stat-label">Veículos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-numero">${totalKM.toLocaleString()}</div>
+                        <div class="stat-label">KM Total Percorrido</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-numero">${mediaKM}</div>
+                        <div class="stat-label">Média KM/Registro</div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+                document.getElementById('stats').innerHTML = `
+                    <div class="stat-card" style="grid-column: 1 / -1;">
+                        <div style="color: #dc3545; font-size: 20px;">❌</div>
+                        <div class="stat-label">Erro ao carregar estatísticas</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // ========== CARREGAR CHECKLISTS ==========
+        async function carregarChecklists() {
+            if (!supabase) return;
+            
+            try {
+                // Mostrar loading
+                document.getElementById('tabelaCorpo').innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px;">
+                            <div class="spinner"></div>
+                            <div style="margin-top: 10px; color: #666;">Carregando registros...</div>
+                        </td>
+                    </tr>
+                `;
+                
+                // Construir query base
+                let query = supabase
+                    .from('checklists')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                // Aplicar filtros
+                const placa = document.getElementById('filtroPlaca').value.trim();
+                const colaborador = document.getElementById('filtroColaborador').value;
+                const tipoRota = document.getElementById('filtroTipoRota').value;
+                const dataInicio = document.getElementById('filtroDataInicio').value;
+                const dataFim = document.getElementById('filtroDataFim').value;
+                
+                if (placa) {
+                    query = query.ilike('placa', `%${placa}%`);
+                }
+                if (colaborador) {
+                    query = query.eq('colaborador', colaborador);
+                }
+                if (tipoRota) {
+                    query = query.eq('tipo_rota', tipoRota);
+                }
+                
+                // Executar query
+                const { data, error } = await query;
+                
+                if (error) throw error;
+                
+                checklistsData = data || [];
+                
+                // Aplicar filtro de data (client-side)
+                let dadosFiltrados = checklistsData;
+                if (dataInicio || dataFim) {
+                    dadosFiltrados = dadosFiltrados.filter(item => {
+                        const dataItem = new Date(item.data.split('/').reverse().join('-'));
+                        const inicio = dataInicio ? new Date(dataInicio) : null;
+                        const fim = dataFim ? new Date(dataFim) : null;
+                        
+                        if (inicio && dataItem < inicio) return false;
+                        if (fim && dataItem > fim) return false;
+                        return true;
+                    });
+                }
+                
+                // Renderizar tabela
+                renderizarTabela(dadosFiltrados);
+                
+                // Atualizar contador
+                document.getElementById('contadorRegistros').textContent = 
+                    `${dadosFiltrados.length} registro${dadosFiltrados.length !== 1 ? 's' : ''} encontrado${dadosFiltrados.length !== 1 ? 's' : ''}`;
+                
+                // Atualizar filtro de colaboradores
+                atualizarFiltroColaboradores();
+                
+            } catch (error) {
+                console.error('Erro ao carregar checklists:', error);
+                document.getElementById('tabelaCorpo').innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #dc3545;">
+                            <div style="font-size: 48px;">❌</div>
+                            <div style="margin-top: 10px;">Erro ao carregar dados: ${error.message}</div>
+                            <button onclick="carregarChecklists()" style="margin-top: 15px;" class="btn-primary">
+                                Tentar Novamente
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('contadorRegistros').textContent = 'Erro ao carregar';
+            }
+        }
+        
+        // ========== RENDERIZAR TABELA ==========
+        function renderizarTabela(dados) {
+            const tbody = document.getElementById('tabelaCorpo');
+            
+            if (!dados || dados.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+                            <div style="font-size: 48px;">📭</div>
+                            <div style="margin-top: 10px;">Nenhum registro encontrado</div>
+                            <button onclick="limparFiltros()" style="margin-top: 15px;" class="btn-primary">
+                                Limpar Filtros
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            dados.forEach(item => {
+                html += `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600;">${item.data}</div>
+                            <div style="font-size: 12px; color: #666;">${item.hora}</div>
+                        </td>
+                        <td>${item.veiculo}</td>
+                        <td>
+                            <span style="font-family: monospace; background: #f8f9fa; padding: 4px 8px; border-radius: 4px;">
+                                ${item.placa}
+                            </span>
+                        </td>
+                        <td>${item.colaborador}</td>
+                        <td>
+                            <span style="font-weight: 600;">${(item.km || 0).toLocaleString()}</span>
+                            <div style="font-size: 12px; color: #666;">km</div>
+                        </td>
+                        <td>
+                            <span class="badge ${item.tipo_rota === 'INÍCIO' ? 'badge-inicio' : 'badge-final'}">
+                                ${item.tipo_rota === 'INÍCIO' ? '▶️ INÍCIO' : '⏹️ FINAL'}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 5px;">
+                                <button class="btn-primary" onclick="verDetalhes('${item.id}')" title="Ver detalhes">
+                                    👁️
+                                </button>
+                                <button class="btn-danger" onclick="excluirChecklist('${item.id}')" title="Excluir registro">
+                                    🗑️
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        }
+        
+        // ========== VER DETALHES ==========
+        async function verDetalhes(id) {
+            if (!supabase) return;
+            
+            try {
+                const { data, error } = await supabase
+                    .from('checklists')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+                
+                if (error) throw error;
+                
+                if (!data) {
+                    alert('Registro não encontrado!');
+                    return;
+                }
+                
+                // Formatando detalhes
+                let html = `
+                    <div class="detalhes-grid">
+                        <div class="detalhe-item">
+                            <strong>Data e Hora</strong>
+                            <span>${data.data} às ${data.hora}</span>
+                        </div>
+                        <div class="detalhe-item">
+                            <strong>Colaborador</strong>
+                            <span>${data.colaborador}</span>
+                        </div>
+                        <div class="detalhe-item">
+                            <strong>Veículo</strong>
+                            <span>${data.veiculo}</span>
+                        </div>
+                        <div class="detalhe-item">
+                            <strong>Placa</strong>
+                            <span style="font-family: monospace;">${data.placa}</span>
+                        </div>
+                        <div class="detalhe-item">
+                            <strong>Tipo de Veículo</strong>
+                            <span>${data.tipo_veiculo || 'Não informado'}</span>
+                        </div>
+                        <div class="detalhe-item">
+                            <strong>Tipo de Rota</strong>
+                            <span class="badge ${data.tipo_rota === 'INÍCIO' ? 'badge-inicio' : 'badge-final'}">
+                                ${data.tipo_rota}
+                            </span>
+                        </div>
+                        <div class="detalhe-item">
+                            <strong>Quilometragem</strong>
+                            <span>${(data.km || 0).toLocaleString()} km</span>
+                        </div>
+                        <div class="detalhe-item">
+                            <strong>Registrado em</strong>
+                            <span>${new Date(data.created_at).toLocaleString('pt-BR')}</span>
+                        </div>
+                    </div>
+                `;
+                
+                // Adicionar foto do painel se existir
+                if (data.foto_painel_base64) {
+                    html += `
+                        <div class="imagem-container">
+                            <h4>📸 Foto do Painel (KM)</h4>
+                            <img src="${data.foto_painel_base64}" alt="Foto do painel do veículo">
+                            <p style="text-align: center; margin-top: 10px;">
+                                <a href="${data.foto_painel_base64}" target="_blank" class="btn-secondary" style="display: inline-block; padding: 8px 15px;">
+                                    🔗 Abrir imagem original
+                                </a>
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                // Adicionar assinatura se existir
+                if (data.assinatura_base64) {
+                    html += `
+                        <div class="imagem-container">
+                            <h4>✍️ Assinatura Digital</h4>
+                            <img src="${data.assinatura_base64}" alt="Assinatura digital" style="max-height: 150px; object-fit: contain;">
+                        </div>
+                    `;
+                }
+                
+                // Informações adicionais
+                html += `
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 14px; color: #666;">
+                        <strong>ID do registro:</strong> ${data.id}<br>
+                        <strong>Última atualização:</strong> ${new Date(data.updated_at || data.created_at).toLocaleString('pt-BR')}
+                    </div>
+                `;
+                
+                document.getElementById('modalConteudo').innerHTML = html;
+                document.getElementById('detalhesModal').style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Erro ao carregar detalhes:', error);
+                alert('Erro ao carregar detalhes: ' + error.message);
+            }
+        }
+        
+        // ========== EXCLUIR CHECKLIST ==========
+        async function excluirChecklist(id) {
+            if (!supabase) return;
+            
+            if (!confirm('🗑️ Tem certeza que deseja excluir este registro?\n\nEsta ação não pode ser desfeita.')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('checklists')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                alert('✅ Registro excluído com sucesso!');
+                
+                // Recarregar dados
+                carregarEstatisticas();
+                carregarChecklists();
+                
+            } catch (error) {
+                console.error('Erro ao excluir:', error);
+                alert('❌ Erro ao excluir registro: ' + error.message);
+            }
+        }
+        
+        // ========== FILTROS ==========
+        function atualizarFiltroColaboradores() {
+            const select = document.getElementById('filtroColaborador');
+            const colaboradores = [...new Set(checklistsData.map(c => c.colaborador))].sort();
+            
+            let options = '<option value="">Todos os colaboradores</option>';
+            colaboradores.forEach(colab => {
+                const selecionado = select.value === colab ? 'selected' : '';
+                options += `<option value="${colab}" ${selecionado}>${colab}</option>`;
+            });
+            
+            select.innerHTML = options;
+        }
+        
+        function aplicarFiltros() {
+            carregarChecklists();
+        }
+        
+        function limparFiltros() {
+            document.getElementById('filtroPlaca').value = '';
+            document.getElementById('filtroColaborador').value = '';
+            document.getElementById('filtroTipoRota').value = '';
+            document.getElementById('filtroDataInicio').value = '';
+            document.getElementById('filtroDataFim').value = '';
+            
+            carregarChecklists();
+        }
+        
+        // ========== FUNÇÕES ADMINISTRATIVAS ==========
+        async function iniciarModoProducao() {
+            if (!supabase) return;
+            
+            if (!confirm('🚀 INICIAR MODO PRODUÇÃO\n\nIsso vai:' +
+                         '\n1. 🔍 Listar todos os registros atuais' +
+                         '\n2. 📋 Gerar relatório completo' +
+                         '\n3. 🗑️ Oferecer opção de limpar dados de teste' +
+                         '\n4. ✅ Preparar sistema para uso oficial' +
+                         '\n\nContinuar?')) {
+                return;
+            }
+            
+            try {
+                // Carregar todos os dados
+                const { data, error } = await supabase
+                    .from('checklists')
+                    .select('*');
+                
+                if (error) throw error;
+                
+                if (!data || data.length === 0) {
+                    alert('✅ Sistema já está limpo! Pode iniciar uso oficial.');
+                    return;
+                }
+                
+                // Gerar relatório
+                let relatorio = '📋 RELATÓRIO ATUAL DO SISTEMA\n\n';
+                relatorio += `Total de registros: ${data.length}\n\n`;
+                
+                // Agrupar por placa
+                const porPlaca = {};
+                data.forEach(item => {
+                    if (!porPlaca[item.placa]) {
+                        porPlaca[item.placa] = [];
+                    }
+                    porPlaca[item.placa].push({
+                        data: item.data,
+                        km: item.km,
+                        colaborador: item.colaborador
+                    });
+                });
+                
+                relatorio += '📊 Por placa:\n';
+                Object.keys(porPlaca).forEach(placa => {
+                    const registros = porPlaca[placa];
+                    const kmValues = registros.map(r => r.km).filter(km => km);
+                    const maiorKM = kmValues.length > 0 ? Math.max(...kmValues) : 0;
+                    const menorKM = kmValues.length > 0 ? Math.min(...kmValues) : 0;
+                    
+                    relatorio += `\n  ${placa}: ${registros.length} registros\n`;
+                    if (kmValues.length > 0) {
+                        relatorio += `    • KM atual: ${maiorKM.toLocaleString()} km\n`;
+                        relatorio += `    • KM inicial: ${menorKM.toLocaleString()} km\n`;
+                        relatorio += `    • Diferença: +${(maiorKM - menorKM).toLocaleString()} km\n`;
+                    }
+                });
+                
+                // Oferecer opções
+                const acao = prompt(
+                    relatorio + 
+                    '\n\nO que deseja fazer?' +
+                    '\n1. 🗑️ Excluir TODOS os registros' +
+                    '\n2. 🚗 Excluir por placa específica' +
+                    '\n3. 📅 Manter registros (não excluir)' +
+                    '\n\nDigite 1, 2 ou 3:'
+                );
+                
+                switch(acao) {
+                    case '1':
+                        await limparTodosRegistros();
+                        break;
+                    case '2':
+                        const placa = prompt('Digite a placa para limpar (ex: QWO9F32):');
+                        if (placa) await limparPorPlaca(placa);
+                        break;
+                    case '3':
+                        alert('✅ Sistema mantido com dados atuais.\n\nO próximo registro de cada veículo será validado contra o KM atual.');
+                        break;
+                    default:
+                        alert('ℹ️ Operação cancelada.');
+                }
+                
+                // Recarregar dashboard
+                carregarEstatisticas();
+                carregarChecklists();
+                
+            } catch (error) {
+                console.error('Erro no modo produção:', error);
+                alert('❌ Erro: ' + error.message);
+            }
+        }
+        
+        async function limparTodosRegistros() {
+            if (!confirm('🚨 ATENÇÃO: Isso vai excluir TODOS os registros do Supabase!\n\nEsta ação NÃO pode ser desfeita.\n\nTem certeza?')) {
+                return;
+            }
+            
+            if (!confirm('🚨 CONFIRMAÇÃO FINAL:\n\nVAI EXCLUIR DEFINITIVAMENTE TODOS OS DADOS!\n\nClique em OK apenas se tiver absoluta certeza.')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('checklists')
+                    .delete()
+                    .neq('id', 0); // Delete tudo
+                
+                if (error) throw error;
+                
+                alert('✅ Banco de dados limpo com sucesso!');
+                
+                // Recarregar
+                carregarEstatisticas();
+                carregarChecklists();
+                
+            } catch (error) {
+                alert('❌ Erro ao limpar: ' + error.message);
+            }
+        }
+        
+        async function limparPorPlaca(placa) {
+            if (!placa) {
+                placa = prompt('Digite a placa para limpar (ex: QWO9F32):');
+                if (!placa) return;
+            }
+            
+            if (!confirm(`🗑️ Excluir todos os registros da placa ${placa}?`)) {
+                return;
+            }
+            
+            try {
+                const { count, error } = await supabase
+                    .from('checklists')
+                    .delete()
+                    .eq('placa', placa);
+                
+                if (error) throw error;
+                
+                alert(`✅ ${count || 0} registros da placa ${placa} excluídos!`);
+                
+                // Recarregar
+                carregarEstatisticas();
+                carregarChecklists();
+                
+            } catch (error) {
+                alert('❌ Erro: ' + error.message);
+            }
+        }
+        
+        async function limparDadosTeste() {
+            const placaTeste = prompt('Digite a placa de TESTE para limpar (ex: TESTE123, ABC1234):');
+            if (!placaTeste) return;
+            
+            if (!confirm(`🧹 Limpar todos os registros da placa de teste ${placaTeste}?`)) {
+                return;
+            }
+            
+            try {
+                const { count, error } = await supabase
+                    .from('checklists')
+                    .delete()
+                    .eq('placa', placaTeste);
+                
+                if (error) throw error;
+                
+                alert(`✅ ${count || 0} registros de teste limpos!`);
+                
+                // Recarregar
+                carregarEstatisticas();
+                carregarChecklists();
+                
+            } catch (error) {
+                alert('❌ Erro: ' + error.message);
+            }
+        }
+        
+        // ========== EXPORTAÇÃO ==========
+        async function exportarDados() {
+            if (!checklistsData.length) {
+                alert('❌ Nenhum dado para exportar.');
+                return;
+            }
+            
+            try {
+                // Converter para CSV
+                const headers = ['Data', 'Hora', 'Colaborador', 'Veículo', 'Placa', 'Tipo Veículo', 'Tipo Rota', 'KM', 'Registrado em'];
+                const csvData = checklistsData.map(item => [
+                    `"${item.data}"`,
+                    `"${item.hora}"`,
+                    `"${item.colaborador}"`,
+                    `"${item.veiculo}"`,
+                    `"${item.placa}"`,
+                    `"${item.tipo_veiculo || ''}"`,
+                    `"${item.tipo_rota}"`,
+                    item.km || 0,
+                    `"${new Date(item.created_at).toLocaleString('pt-BR')}"`
+                ]);
+                
+                const csv = [headers.join(','), ...csvData.map(row => row.join(','))].join('\n');
+                
+                // Criar blob e download
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.href = url;
+                link.download = `checklists_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                alert(`✅ Dados exportados! ${checklistsData.length} registros salvos.`);
+                
+            } catch (error) {
+                console.error('Erro ao exportar:', error);
+                alert('❌ Erro ao exportar dados: ' + error.message);
+            }
+        }
+        
+        async function gerarRelatorio() {
+            alert('📊 Gerando relatório detalhado...\n\nEsta funcionalidade está em desenvolvimento.\n\nUse a exportação CSV para análises externas.');
+        }
+        
+        // ========== UTILITÁRIOS ==========
+        function fecharModal() {
+            document.getElementById('detalhesModal').style.display = 'none';
+        }
+        
+        function atualizarDashboard() {
+            carregarEstatisticas();
+            carregarChecklists();
+            alert('🔄 Dashboard atualizado!');
+        }
+        
+        // ========== INICIALIZAÇÃO ==========
+        window.onload = async function() {
+            // Inicializar Supabase
+            const conectado = await inicializarSupabase();
+            
+            if (conectado) {
+                // Carregar dados
+                await carregarEstatisticas();
+                await carregarChecklists();
+                
+                // Configurar atualização automática a cada 30 segundos
+                setInterval(carregarEstatisticas, 30000);
+                
+                // Fechar modal com ESC
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') fecharModal();
+                });
+                
+                // Fechar modal ao clicar fora
+                document.getElementById('detalhesModal').addEventListener('click', (e) => {
+                    if (e.target.id === 'detalhesModal') {
+                        fecharModal();
+                    }
+                });
+            } else {
+                // Mostrar erro de conexão
+                document.getElementById('stats').innerHTML = `
+                    <div class="stat-card" style="grid-column: 1 / -1;">
+                        <div style="color: #dc3545; font-size: 48px;">⚠️</div>
+                        <div class="stat-label" style="font-size: 16px; margin-top: 10px;">
+                            Erro de conexão com o banco de dados
+                        </div>
+                        <button onclick="location.reload()" style="margin-top: 15px;" class="btn-primary">
+                            Tentar Reconectar
+                        </button>
+                    </div>
+                `;
+                
+                document.getElementById('tabelaCorpo').innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #dc3545;">
+                            <div style="font-size: 48px;">🔌</div>
+                            <div style="margin-top: 10px;">Não foi possível conectar ao Supabase</div>
+                            <div style="font-size: 12px; margin-top: 5px;">Verifique a configuração em supabase-config.js</div>
+                            <button onclick="location.reload()" style="margin-top: 15px;" class="btn-primary">
+                                Recarregar Página
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+        };
+    </script>
+</body>
+</html>
+[file content end]
     <style>
         * { box-sizing: border-box; }
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
