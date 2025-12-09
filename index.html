@@ -515,74 +515,82 @@
         }
     }
 
-    // FUNÇÃO PARA SALVAR CHECKLIST NO SUPABASE (PREFERÊNCIA) E FIREBASE (BACKUP)
-    async function salvarChecklist(dados) {
-        let resultadoSupabase = null;
-        let resultadoFirebase = null;
-        
-        // 🔥 SALVAR NO SUPABASE (PRIMÁRIO)
-        if (supabase) {
-            try {
-                console.log('💾 Salvando no Supabase:', dados);
-                
-                // Preparar dados para Supabase
-                const dadosSupabase = {
-                    tipo_rota: dados.tipo_rota,
-                    data: dados.data,
-                    hora: dados.hora,
-                    colaborador: dados.colaborador,
-                    tipo_veiculo: dados.tipo_veiculo,
-                    veiculo: dados.veiculo,
-                    placa: dados.placa,
-                    km: dados.quilometragem,
-                    responsavel: dados.colaborador,
-                    itens: JSON.stringify({ observacao: 'Checklist gerado via app' }),
-                    foto_painel_base64: dados.foto_painel_base64,
-                    assinatura_base64: dados.assinatura_base64
-                };
-                
-                const { data, error } = await supabase
-                    .from('checklists')
-                    .insert([dadosSupabase])
-                    .select();
-                
-                if (error) throw error;
-                
-                console.log('✅ Documento salvo no Supabase com ID:', data[0].id);
-                resultadoSupabase = data[0].id;
-                
-            } catch (error) {
-                console.error('❌ Erro ao salvar no Supabase:', error);
+// ========== FUNÇÃO PARA COMPRIMIR IMAGEM ==========
+function comprimirImagem(base64, maxWidth = 800, qualidade = 0.6) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            
+            // Redimensionar se for muito larga
+            if (width > maxWidth) {
+                height = (height * maxWidth) / width;
+                width = maxWidth;
             }
-        }
-        
-        // 🔥 SALVAR NO FIREBASE (BACKUP)
-        if (db) {
-            try {
-                console.log('💾 Salvando backup no Firebase:', dados);
-                
-                const dadosFirebase = {
-                    tipo_rota: dados.tipo_rota,
-                    data: dados.data,
-                    hora: dados.hora,
-                    colaborador: dados.colaborador,
-                    tipo_veiculo: dados.tipo_veiculo,
-                    veiculo: dados.veiculo,
-                    placa: dados.placa,
-                    quilometragem: dados.quilometragem,
-                    foto_painel_base64: dados.foto_painel_base64,
-                    assinatura_base64: dados.assinatura_base64,
-                    created_at: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                
-                const docRef = await db.collection('checklists').add(dadosFirebase);
-                console.log('✅ Backup salvo no Firebase com ID:', docRef.id);
-                resultadoFirebase = docRef.id;
-                
-            } catch (error) {
-                console.error('❌ Erro ao salvar backup no Firebase:', error);
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Converter para JPEG com qualidade reduzida
+            const compressedBase64 = canvas.toDataURL('image/jpeg', qualidade);
+            resolve(compressedBase64);
+        };
+        img.src = base64;
+    });
+}
+
+   // ========== FUNÇÃO PARA SALVAR CHECKLIST APENAS NO SUPABASE ==========
+async function salvarChecklist(dados) {
+    // 🔥 SALVAR SOMENTE NO SUPABASE (REMOVER FIREBASE)
+    if (supabase) {
+        try {
+            console.log('💾 Salvando no Supabase:', dados);
+            
+            // 🔥 COMPRIMIR IMAGEM ANTES DE SALVAR
+            let fotoComprimida = dados.foto_painel_base64;
+            if (fotoComprimida && fotoComprimida.length > 500000) { // > 500KB
+                fotoComprimida = await comprimirImagem(fotoComprimida);
+                console.log('📷 Imagem comprimida:', Math.round(fotoComprimida.length / 1024), 'KB');
             }
+            
+            // Preparar dados para Supabase
+            const dadosSupabase = {
+                tipo_rota: dados.tipo_rota === 'inicio' ? 'INÍCIO' : 'FINAL',
+                data: dados.data,
+                hora: dados.hora,
+                colaborador: dados.colaborador,
+                tipo_veiculo: dados.tipo_veiculo,
+                veiculo: dados.veiculo,
+                placa: dados.placa,
+                km: dados.quilometragem,
+                foto_painel_base64: fotoComprimida,
+                assinatura_base64: dados.assinatura_base64,
+                created_at: new Date().toISOString()
+            };
+            
+            const { data, error } = await supabase
+                .from('checklists')
+                .insert([dadosSupabase])
+                .select();
+            
+            if (error) throw error;
+            
+            console.log('✅ Documento salvo no Supabase com ID:', data[0].id);
+            return data[0].id;
+            
+        } catch (error) {
+            console.error('❌ Erro ao salvar no Supabase:', error);
+            throw error;
         }
+    } else {
+        throw new Error('Supabase não inicializado');
+    }
+}
         
         // Retornar resultado principal
         return resultadoSupabase || resultadoFirebase;
