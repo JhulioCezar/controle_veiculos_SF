@@ -1417,9 +1417,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         
-        // Variáveis globais
-        let checklistsData = [];
-        
         // Carregar estatísticas
         async function carregarEstatisticas() {
             const snapshot = await db.collection('checklists').get();
