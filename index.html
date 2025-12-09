@@ -16,6 +16,10 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
+  <!-- 🔥 SUPABASE (NOVO BANCO) -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -228,6 +232,27 @@
     let fotoPainelDataURL = null;
     let signaturePad, ctx, desenhando = false;
     let db = null; // 🔥 Firebase Firestore
+    let supabase = null; // 🔥 Supabase Client
+
+    // ========== SUPABASE CONFIGURAÇÃO ==========
+    function inicializarSupabase() {
+      try {
+        if (typeof SUPABASE_CONFIG === 'undefined') {
+          console.warn('⚠️ Configuração Supabase não encontrada. Verifique supabase-config.js');
+          return null;
+        }
+        
+        supabase = window.supabase.createClient(
+          SUPABASE_CONFIG.url,
+          SUPABASE_CONFIG.anonKey
+        );
+        console.log('✅ Supabase inicializado com sucesso');
+        return supabase;
+      } catch (error) {
+        console.error('❌ Erro ao inicializar Supabase:', error);
+        return null;
+      }
+    }
 
     // ========== FIREBASE CONFIGURAÇÃO ==========
     function inicializarFirebase() {
@@ -251,7 +276,6 @@
             return db;
         } catch (error) {
             console.error('❌ Erro ao inicializar Firebase:', error);
-            alert('Erro ao conectar com o banco de dados. Recarregue a página.');
             return null;
         }
     }
@@ -284,12 +308,18 @@
         return;
       }
       
-      // 🔥 INICIALIZAR FIREBASE AQUI (se ainda não foi)
+      // 🔥 INICIALIZAR BANCOS DE DADOS
       if (!db) {
         db = inicializarFirebase();
         if (!db) {
-          alert("Erro ao conectar com o banco de dados. Recarregue a página.");
-          return;
+          console.warn('Firebase não inicializado - usando modo offline');
+        }
+      }
+      
+      if (!supabase) {
+        supabase = inicializarSupabase();
+        if (!supabase) {
+          console.warn('Supabase não inicializado - usando modo offline');
         }
       }
       
@@ -439,116 +469,123 @@
     // ========== FUNÇÃO CORRIGIDA PARA BUSCAR ÚLTIMO KM ==========
     async function buscarUltimoKM(placaVeiculo) {
         try {
-            if (!db) {
-                db = inicializarFirebase();
-                if (!db) {
-                    console.log('Firebase não inicializado');
-                    return null;
+            // 🔥 TENTAR SUPABASE PRIMEIRO
+            if (supabase) {
+                console.log('🔍 Buscando último KM no Supabase para placa:', placaVeiculo);
+                
+                const { data, error } = await supabase
+                    .from('checklists')
+                    .select('km')
+                    .eq('placa', placaVeiculo)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                
+                if (error) throw error;
+                
+                if (data && data.length > 0) {
+                    console.log('✅ Último KM encontrado no Supabase:', data[0].km);
+                    return data[0].km;
                 }
             }
             
-            console.log('🔍 Buscando último KM para placa:', placaVeiculo);
-            
-            const querySnapshot = await db.collection('checklists')
-                .where('placa', '==', placaVeiculo)
-                .orderBy('created_at', 'desc')
-                .limit(1)
-                .get();
-            
-            if (!querySnapshot.empty) {
-                const ultimoRegistro = querySnapshot.docs[0].data();
-                const ultimoKM = ultimoRegistro.quilometragem;
-                console.log('✅ Último KM encontrado:', ultimoKM);
-                return ultimoKM;
-            } else {
-                console.log('📭 Nenhum registro anterior encontrado para esta placa');
-                return null;
+            // 🔥 FALLBACK PARA FIREBASE
+            if (db) {
+                console.log('🔍 Buscando último KM no Firebase para placa:', placaVeiculo);
+                
+                const querySnapshot = await db.collection('checklists')
+                    .where('placa', '==', placaVeiculo)
+                    .orderBy('created_at', 'desc')
+                    .limit(1)
+                    .get();
+                
+                if (!querySnapshot.empty) {
+                    const ultimoRegistro = querySnapshot.docs[0].data();
+                    const ultimoKM = ultimoRegistro.quilometragem;
+                    console.log('✅ Último KM encontrado no Firebase:', ultimoKM);
+                    return ultimoKM;
+                }
             }
+            
+            console.log('📭 Nenhum registro anterior encontrado para esta placa');
+            return null;
+            
         } catch (error) {
             console.error('❌ Erro ao buscar último KM:', error);
-            
-            // Se o erro for de índice faltante
-            if (error.code === 'failed-precondition') {
-                console.log('⚠️ Índice necessário. Buscando de forma alternativa...');
-                return await buscarUltimoKMSemIndice(placaVeiculo);
-            }
-            
             return null;
         }
     }
 
-    // FUNÇÃO ALTERNATIVA SE O ÍNDICE NÃO EXISTIR
-    async function buscarUltimoKMSemIndice(placaVeiculo) {
-        try {
-            console.log('🔄 Buscando KM sem índice para:', placaVeiculo);
-            
-            const querySnapshot = await db.collection('checklists')
-                .where('placa', '==', placaVeiculo)
-                .get();
-            
-            if (!querySnapshot.empty) {
-                // Ordenar manualmente por data
-                const registros = querySnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return {
-                        quilometragem: data.quilometragem,
-                        created_at: data.created_at || new Date(0).toISOString()
-                    };
-                });
+    // FUNÇÃO PARA SALVAR CHECKLIST NO SUPABASE (PREFERÊNCIA) E FIREBASE (BACKUP)
+    async function salvarChecklist(dados) {
+        let resultadoSupabase = null;
+        let resultadoFirebase = null;
+        
+        // 🔥 SALVAR NO SUPABASE (PRIMÁRIO)
+        if (supabase) {
+            try {
+                console.log('💾 Salvando no Supabase:', dados);
                 
-                registros.sort((a, b) => {
-                    return new Date(b.created_at) - new Date(a.created_at);
-                });
+                // Preparar dados para Supabase
+                const dadosSupabase = {
+                    tipo_rota: dados.tipo_rota,
+                    data: dados.data,
+                    hora: dados.hora,
+                    colaborador: dados.colaborador,
+                    tipo_veiculo: dados.tipo_veiculo,
+                    veiculo: dados.veiculo,
+                    placa: dados.placa,
+                    km: dados.quilometragem,
+                    responsavel: dados.colaborador,
+                    itens: JSON.stringify({ observacao: 'Checklist gerado via app' }),
+                    foto_painel_base64: dados.foto_painel_base64,
+                    assinatura_base64: dados.assinatura_base64
+                };
                 
-                const ultimoKM = registros[0].quilometragem;
-                console.log('✅ Último KM encontrado (sem índice):', ultimoKM);
-                return ultimoKM;
-            } else {
-                console.log('📭 Nenhum registro encontrado');
-                return null;
+                const { data, error } = await supabase
+                    .from('checklists')
+                    .insert([dadosSupabase])
+                    .select();
+                
+                if (error) throw error;
+                
+                console.log('✅ Documento salvo no Supabase com ID:', data[0].id);
+                resultadoSupabase = data[0].id;
+                
+            } catch (error) {
+                console.error('❌ Erro ao salvar no Supabase:', error);
             }
-        } catch (error) {
-            console.error('❌ Erro na busca alternativa:', error);
-            return null;
         }
-    }
-
-    // FUNÇÃO PARA SALVAR CHECKLIST NO FIRESTORE (COM FOTOS BASE64)
-    async function salvarChecklistFirebase(dados) {
-        try {
-            if (!db) {
-                db = inicializarFirebase();
-                if (!db) {
-                    alert('❌ Erro ao conectar com o banco. Verifique sua conexão.');
-                    return null;
-                }
+        
+        // 🔥 SALVAR NO FIREBASE (BACKUP)
+        if (db) {
+            try {
+                console.log('💾 Salvando backup no Firebase:', dados);
+                
+                const dadosFirebase = {
+                    tipo_rota: dados.tipo_rota,
+                    data: dados.data,
+                    hora: dados.hora,
+                    colaborador: dados.colaborador,
+                    tipo_veiculo: dados.tipo_veiculo,
+                    veiculo: dados.veiculo,
+                    placa: dados.placa,
+                    quilometragem: dados.quilometragem,
+                    foto_painel_base64: dados.foto_painel_base64,
+                    assinatura_base64: dados.assinatura_base64,
+                    created_at: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                const docRef = await db.collection('checklists').add(dadosFirebase);
+                console.log('✅ Backup salvo no Firebase com ID:', docRef.id);
+                resultadoFirebase = docRef.id;
+                
+            } catch (error) {
+                console.error('❌ Erro ao salvar backup no Firebase:', error);
             }
-            
-            console.log('Salvando no Firestore:', dados);
-            
-            // Adicionar timestamp
-            const dadosCompletos = {
-                tipo_rota: dados.tipo_rota,
-                data: dados.data,
-                hora: dados.hora,
-                colaborador: dados.colaborador,
-                tipo_veiculo: dados.tipo_veiculo,
-                veiculo: dados.veiculo,
-                placa: dados.placa,
-                quilometragem: dados.quilometragem,
-                foto_painel_base64: dados.foto_painel_base64,
-                assinatura_base64: dados.assinatura_base64,
-                created_at: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            
-            const docRef = await db.collection('checklists').add(dadosCompletos);
-            console.log('✅ Documento salvo com ID:', docRef.id);
-            return docRef.id;
-        } catch (error) {
-            console.error('❌ Erro ao salvar no Firestore:', error);
-            alert('❌ Erro ao salvar: ' + error.message);
-            return null;
         }
+        
+        // Retornar resultado principal
+        return resultadoSupabase || resultadoFirebase;
     }
 
     // CONVERTER ARQUIVO PARA BASE64
@@ -656,7 +693,7 @@
         }, 10000);
     }
 
-    // 🔥 FUNÇÃO ATUALIZADA: GERAR PDF + SALVAR NO FIRESTORE COM VALIDAÇÃO DE KM
+    // 🔥 FUNÇÃO ATUALIZADA: GERAR PDF + SALVAR NO BANCO DE DADOS
     async function gerarESalvarPDF() {
         const campos = document.querySelectorAll("#formulario [required]");
         for (const campo of campos) {
@@ -872,7 +909,7 @@
             doc.setFontSize(9);
             doc.text(colaborador, pageWidth / 2, yPos, { align: 'center' });
             
-            // ✅ AGORA SALVAR TUDO NO FIRESTORE (COM BASE64)
+            // ✅ AGORA SALVAR TUDO NO BANCO DE DADOS (COM BASE64)
             const timestamp = new Date().getTime();
             const fileName = `Checklist_${veiculo.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
             
@@ -886,7 +923,7 @@
                 assinaturaBase64 = signatureDataURL;
             }
             
-            // 3. 🔥 SALVAR TODOS OS DADOS NO FIRESTORE
+            // 3. 🔥 SALVAR TODOS OS DADOS NO BANCO (SUPABASE + FIREBASE BACKUP)
             const dadosChecklist = {
                 tipo_rota: tipoRota === 'inicio' ? 'INÍCIO' : 'FINAL',
                 data: data,
@@ -900,7 +937,7 @@
                 assinatura_base64: assinaturaBase64
             };
             
-            const resultado = await salvarChecklistFirebase(dadosChecklist);
+            const resultado = await salvarChecklist(dadosChecklist);
             
             if (resultado) {
               // 4. Salvar PDF localmente
@@ -919,17 +956,15 @@
         }
     }
 
-    // Inicializar Firebase quando a página carrega
+    // Inicializar bancos de dados quando a página carrega
     window.addEventListener('load', function() {
+        // Inicializar ambos os bancos
         db = inicializarFirebase();
-        console.log('✅ Aplicação carregada. Firebase:', db ? 'OK' : 'Erro');
+        supabase = inicializarSupabase();
         
-        // Testar conexão com Firestore
-        if (db) {
-            db.collection('checklists').limit(1).get()
-                .then(() => console.log('✅ Conexão Firestore OK'))
-                .catch(err => console.warn('⚠️ Aviso Firestore:', err.message));
-        }
+        console.log('✅ Aplicação carregada. Bancos:');
+        console.log('   - Firebase:', db ? 'OK' : 'Erro');
+        console.log('   - Supabase:', supabase ? 'OK' : 'Erro');
     });
   </script>
 </body>
