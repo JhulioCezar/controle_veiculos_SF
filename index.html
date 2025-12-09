@@ -101,7 +101,7 @@
       width: 100%;
       background-color: white;
       border-radius: 6px;
-      box-sizing: border-box; /* 🔥 IMPORTANTE: inclui borda no cálculo de largura */
+      box-sizing: border-box;
     }
     .loading-pdf {
       display: none;
@@ -159,16 +159,16 @@
       <select id="colaborador" required>
         <option value="">Selecione</option>
         <option>Henrique da Silva Barbosa</option>
-    	<option>Hugo Nascimento dos Santos</option>
-    	<option>Jhulio Cezar de Alencar Araujo</option>
-    	<option>João Paulo Maciel Santo</option>
-    	<option>João Vitor Rodrigues do Nascimento</option>
-    	<option>Kaio Cezar Jesus Melo Araujo</option>
-    	<option>Luiz Felipe Aguiar de Castro</option>
-    	<option>Marcos Vinicius Lima da Silva</option>
-    	<option>Mauricio Martins da Cunha</option>
-    	<option>Victor Kayan Pereira da Silva</option>
-    	<option>William Matos de Sousa</option>
+        <option>Hugo Nascimento dos Santos</option>
+        <option>Jhulio Cezar de Alencar Araujo</option>
+        <option>João Paulo Maciel Santo</option>
+        <option>João Vitor Rodrigues do Nascimento</option>
+        <option>Kaio Cezar Jesus Melo Araujo</option>
+        <option>Luiz Felipe Aguiar de Castro</option>
+        <option>Marcos Vinicius Lima da Silva</option>
+        <option>Mauricio Martins da Cunha</option>
+        <option>Victor Kayan Pereira da Silva</option>
+        <option>William Matos de Sousa</option>
       </select>
 
       <label>Tipo de Veículo:</label>
@@ -224,8 +224,8 @@
     // ---------- DADOS ----------
     const veiculos = {
       carro: [
-        { nome: "Fiat Toro", placa: "QWO9F32" },
-        { nome: "Volkswagen Saveiro", placa: "STY1F04" }
+        { id: 1, nome: "Fiat Toro", placa: "QWO9F32" },
+        { id: 2, nome: "Volkswagen Saveiro", placa: "STY1F04" }
       ],
       moto: []
     };
@@ -233,8 +233,9 @@
     // ---------- VARIÁVEIS GLOBAIS ----------
     let fotoPainelDataURL = null;
     let signaturePad, ctx, desenhando = false;
-    let db = null; // 🔥 Firebase Firestore
-    let supabase = null; // 🔥 Supabase Client
+    let db = null;
+    let supabase = null;
+    let veiculoSelecionado = null; // 🔥 NOVA VARIÁVEL PARA ARMAZENAR O VEÍCULO COMPLETO
 
     // ========== SUPABASE CONFIGURAÇÃO ==========
     function inicializarSupabase() {
@@ -268,7 +269,6 @@
                 appId: "1:249949766074:web:3f2431f5e2fe94336c7ac3"
             };
             
-            // 🔥 INICIALIZAR CORRETAMENTE
             if (!firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
             }
@@ -289,18 +289,27 @@
       selectVeiculo.innerHTML = '<option value="">Selecione</option>';
       veiculos[tipo]?.forEach(v => {
         const opt = document.createElement("option");
-        opt.value = v.nome;
+        opt.value = v.id; // 🔥 AGORA USA O ID COMO VALOR
         opt.textContent = v.nome;
+        opt.setAttribute('data-veiculo', JSON.stringify(v)); // 🔥 ARMAZENA DADOS COMPLETOS
         selectVeiculo.appendChild(opt);
       });
     }
 
     function atualizarPlaca() {
       const tipo = document.getElementById("tipoVeiculo").value;
-      const veiculoSel = document.getElementById("veiculo").value;
-      const placaInput = document.getElementById("placa");
-      const v = veiculos[tipo]?.find(v => v.nome === veiculoSel);
-      placaInput.value = v ? v.placa : "";
+      const veiculoSelect = document.getElementById("veiculo");
+      const selectedOption = veiculoSelect.options[veiculoSelect.selectedIndex];
+      
+      if (selectedOption.value) {
+        // 🔥 ARMAZENA O VEÍCULO SELECIONADO COMPLETO
+        veiculoSelecionado = JSON.parse(selectedOption.getAttribute('data-veiculo'));
+        const placaInput = document.getElementById("placa");
+        placaInput.value = veiculoSelecionado.placa;
+      } else {
+        veiculoSelecionado = null;
+        document.getElementById("placa").value = "";
+      }
     }
 
     function continuarRota() {
@@ -310,7 +319,6 @@
         return;
       }
       
-      // 🔥 INICIALIZAR BANCOS DE DADOS
       if (!db) {
         db = inicializarFirebase();
         if (!db) {
@@ -325,14 +333,11 @@
         }
       }
       
-      // ATUALIZAR DATA/HORA NO MOMENTO DA SELEÇÃO
       atualizarDataHora();
       
       document.getElementById("step-selection").style.display = "none";
       document.getElementById("formulario").style.display = "block";
       
-      // 🔥 CORREÇÃO: Inicializar o canvas da assinatura APÓS um pequeno delay
-      // para garantir que o formulário esteja visível e o canvas tenha dimensões
       setTimeout(function() {
         inicializarAssinatura();
       }, 100);
@@ -345,16 +350,17 @@
       limparAssinatura();
       fotoPainelDataURL = null;
       document.getElementById('fotoPreview').style.display = 'none';
+      veiculoSelecionado = null; // 🔥 RESETA O VEÍCULO SELECIONADO
     }
 
     function limparFormulario() {
       if (confirm("Deseja limpar todos os campos?")) {
         document.getElementById("formulario").reset();
-        // ATUALIZAR DATA/HORA AO LIMPAR FORMULÁRIO
         atualizarDataHora();
         limparAssinatura();
         fotoPainelDataURL = null;
         document.getElementById('fotoPreview').style.display = 'none';
+        veiculoSelecionado = null; // 🔥 RESETA O VEÍCULO SELECIONADO
       }
     }
 
@@ -375,7 +381,6 @@
 
     // ---------- ASSINATURA DIGITAL ----------
     function inicializarAssinatura() {
-      // 🔥 CORREÇÃO: Verificar se o canvas existe
       signaturePad = document.getElementById("signature-pad");
       if (!signaturePad) {
         console.error("Canvas da assinatura não encontrado!");
@@ -384,34 +389,28 @@
       
       ctx = signaturePad.getContext("2d");
       
-      // Configurar tamanho do canvas
       signaturePad.width = signaturePad.offsetWidth;
       signaturePad.height = signaturePad.offsetHeight;
       
-      // Configurar estilo do desenho
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       
-      // Limpar eventos anteriores
       signaturePad.replaceWith(signaturePad.cloneNode(true));
       signaturePad = document.getElementById("signature-pad");
       ctx = signaturePad.getContext("2d");
       
-      // Configurar estilo novamente
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       
-      // Adicionar eventos
       signaturePad.addEventListener('mousedown', iniciarDesenho);
       signaturePad.addEventListener('mousemove', desenhar);
       signaturePad.addEventListener('mouseup', pararDesenho);
       signaturePad.addEventListener('mouseleave', pararDesenho);
       
-      // Eventos para touch (mobile)
       signaturePad.addEventListener('touchstart', iniciarDesenho);
       signaturePad.addEventListener('touchmove', desenhar);
       signaturePad.addEventListener('touchend', pararDesenho);
@@ -480,7 +479,6 @@
     // ========== FUNÇÃO CORRIGIDA PARA BUSCAR ÚLTIMO KM ==========
     async function buscarUltimoKM(placaVeiculo) {
         try {
-            // 🔥 TENTAR SUPABASE PRIMEIRO
             if (supabase) {
                 console.log('🔍 Buscando último KM no Supabase para placa:', placaVeiculo);
                 
@@ -499,7 +497,6 @@
                 }
             }
             
-            // 🔥 FALLBACK PARA FIREBASE
             if (db) {
                 console.log('🔍 Buscando último KM no Firebase para placa:', placaVeiculo);
                 
@@ -535,7 +532,6 @@
                 let width = img.width;
                 let height = img.height;
                 
-                // Redimensionar se for muito larga
                 if (width > maxWidth) {
                     height = (height * maxWidth) / width;
                     width = maxWidth;
@@ -547,7 +543,6 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // Converter para JPEG com qualidade reduzida
                 const compressedBase64 = canvas.toDataURL('image/jpeg', qualidade);
                 resolve(compressedBase64);
             };
@@ -555,21 +550,20 @@
         });
     }
 
-    // ========== FUNÇÃO PARA SALVAR CHECKLIST APENAS NO SUPABASE ==========
+    // ========== FUNÇÃO CORRIGIDA PARA SALVAR NO SUPABASE ==========
     async function salvarChecklist(dados) {
-        // 🔥 SALVAR SOMENTE NO SUPABASE (REMOVER FIREBASE)
         if (supabase) {
             try {
                 console.log('💾 Salvando no Supabase:', dados);
                 
-                // 🔥 COMPRIMIR IMAGEM ANTES DE SALVAR
+                // 🔥 COMPRIMIR IMAGEM SE NECESSÁRIO
                 let fotoComprimida = dados.foto_painel_base64;
-                if (fotoComprimida && fotoComprimida.length > 500000) { // > 500KB
+                if (fotoComprimida && fotoComprimida.length > 500000) {
                     fotoComprimida = await comprimirImagem(fotoComprimida);
                     console.log('📷 Imagem comprimida:', Math.round(fotoComprimida.length / 1024), 'KB');
                 }
                 
-                // Preparar dados para Supabase
+                // 🔥 PREPARAR DADOS COM VEÍCULO_ID
                 const dadosSupabase = {
                     tipo_rota: dados.tipo_rota === 'inicio' ? 'INÍCIO' : 'FINAL',
                     data: dados.data,
@@ -577,12 +571,15 @@
                     colaborador: dados.colaborador,
                     tipo_veiculo: dados.tipo_veiculo,
                     veiculo: dados.veiculo,
+                    veiculo_id: dados.veiculo_id, // 🔥 AGORA ENVIA O ID DO VEÍCULO
                     placa: dados.placa,
                     km: dados.quilometragem,
                     foto_painel_base64: fotoComprimida,
                     assinatura_base64: dados.assinatura_base64,
                     created_at: new Date().toISOString()
                 };
+                
+                console.log('📤 Dados para Supabase:', dadosSupabase);
                 
                 const { data, error } = await supabase
                     .from('checklists')
@@ -724,6 +721,12 @@
             return;
         }
         
+        // 🔥 VERIFICAR SE O VEÍCULO FOI SELECIONADO CORRETAMENTE
+        if (!veiculoSelecionado) {
+            alert("Por favor, selecione um veículo válido!");
+            return;
+        }
+        
         // 🔥 VALIDAÇÃO DE KM MELHORADA
         const placa = document.getElementById('placa').value;
         const kmAtual = parseInt(document.getElementById('km').value);
@@ -732,7 +735,6 @@
             const ultimoKM = await buscarUltimoKM(placa);
             
             if (ultimoKM !== null) {
-                // Validação 1: KM não pode ser menor
                 if (kmAtual < ultimoKM) {
                     const mensagem = `❌ ATENÇÃO: Quilometragem inválida!\n\n` +
                                     `Último KM registrado: ${ultimoKM} km\n` +
@@ -746,7 +748,6 @@
                     return;
                 }
                 
-                // Validação 2: KM muito diferente (alerta)
                 const diferenca = kmAtual - ultimoKM;
                 if (diferenca > 1000) {
                     const confirmar = confirm(
@@ -764,7 +765,6 @@
                     }
                 }
                 
-                // Validação 3: KM igual (possível erro)
                 if (kmAtual === ultimoKM) {
                     const confirmar = confirm(
                         `ℹ️ KM igual ao último registro\n\n` +
@@ -783,7 +783,6 @@
                 console.log(`✅ KM validado: ${kmAtual} (último: ${ultimoKM}, diferença: +${kmAtual - ultimoKM} km)`);
                 
             } else {
-                // Primeiro registro para este veículo
                 alert(`✅ Primeiro registro para este veículo!\n\n` +
                       `Placa: ${placa}\n` +
                       `KM inicial: ${kmAtual} km`);
@@ -793,61 +792,48 @@
             return;
         }
           
-        // ATUALIZAR DATA/HORA FINAL ANTES DO PDF
         atualizarDataHora();
         
-        // Mostrar loading
         document.getElementById('loadingPDF').style.display = 'block';
         
         try {
-            // Usar a biblioteca jsPDF
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // Dados do formulário
             const tipoRota = document.getElementById('rotaTipo').value;
             const data = document.getElementById('dataAtual').value;
             const hora = document.getElementById('horaAtual').value;
             const colaborador = document.getElementById('colaborador').value;
             const tipoVeiculo = document.getElementById('tipoVeiculo').value;
-            const veiculo = document.getElementById('veiculo').value;
+            const veiculoNome = document.getElementById('veiculo').options[document.getElementById('veiculo').selectedIndex].text;
             const placa = document.getElementById('placa').value;
             const km = document.getElementById('km').value;
             
-            // CONFIGURAÇÕES DE LAYOUT
             const margin = 20;
             const pageWidth = doc.internal.pageSize.getWidth();
             const contentWidth = pageWidth - (margin * 2);
             let yPos = margin;
             
-            // --- CABEÇALHO APENAS COM LOGOMARCA ---
             const logoUrl = 'https://i.imgur.com/SEr4lkm.png';
             
-            // Adicionar logomarca centralizada
             doc.addImage(logoUrl, 'PNG', pageWidth / 2 - 30, yPos, 60, 22);
             yPos += 30;
             
-            // Título principal
             doc.setFontSize(14);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(0, 0, 0);
             doc.text('Controle de Uso de Veículos', pageWidth / 2, yPos, { align: 'center' });
             yPos += 15;
             
-            // --- SEÇÃO DE DADOS ---
             doc.setFontSize(10);
             
-            // Função para adicionar campo
             function adicionarCampo(rotulo, valor, y) {
-                // Label
                 doc.setFont(undefined, 'bold');
                 doc.text(rotulo, margin, y);
                 
-                // Valor
                 doc.setFont(undefined, 'normal');
                 doc.text(valor.toString(), margin, y + 5);
                 
-                // Linha divisória
                 doc.setDrawColor(200, 200, 200);
                 doc.setLineWidth(0.3);
                 doc.line(margin, y + 8, pageWidth - margin, y + 8);
@@ -855,32 +841,27 @@
                 return y + 12;
             }
             
-            // Adicionar campos com linhas divisórias
             yPos = adicionarCampo('Data:', data, yPos);
             yPos = adicionarCampo('Hora:', hora, yPos);
             yPos = adicionarCampo('Colaborador:', colaborador, yPos);
             yPos = adicionarCampo('Tipo de Veículo:', tipoVeiculo.charAt(0).toUpperCase() + tipoVeiculo.slice(1), yPos);
-            yPos = adicionarCampo('Veículo:', veiculo, yPos);
+            yPos = adicionarCampo('Veículo:', veiculoNome, yPos);
             yPos = adicionarCampo('Placa:', placa, yPos);
             yPos = adicionarCampo('Quilometragem:', km + ' km', yPos);
             
             yPos += 3;
             
-            // --- FOTO DO PAINEL (TAMANHO REDUZIDO) ---
             doc.setFont(undefined, 'bold');
             doc.text('Foto do Painel (KM):', margin, yPos);
             yPos += 6;
             
-            // Imagem com tamanho reduzido
             const imgWidth = 40;
             const imgHeight = 40;
             
-            // Adicionar retângulo para a imagem
             doc.setDrawColor(0, 0, 0);
             doc.setLineWidth(0.5);
             doc.rect(margin, yPos, imgWidth, imgHeight);
             
-            // Adicionar a imagem redimensionada
             const imgProps = doc.getImageProperties(fotoPainelDataURL);
             const finalImgWidth = imgWidth - 4;
             const finalImgHeight = imgHeight - 4;
@@ -889,18 +870,15 @@
             
             yPos += imgHeight + 10;
             
-            // --- ASSINATURA DIGITAL ---
             doc.setFont(undefined, 'bold');
             doc.text('Assinatura Digital:', pageWidth / 2, yPos, { align: 'center' });
             yPos += 6;
             
-            // Adicionar retângulo para assinatura
             doc.setDrawColor(0, 0, 0);
             doc.setLineWidth(0.5);
             const signatureHeight = 25;
             doc.rect(margin, yPos, contentWidth, signatureHeight);
             
-            // Adicionar assinatura se existir
             const signatureDataURL = signaturePad.toDataURL();
             if (signatureDataURL && !signaturePadBlank()) {
                 try {
@@ -908,7 +886,6 @@
                     const signatureWidth = contentWidth - 10;
                     const calcSignatureHeight = (signatureProps.height * signatureWidth) / signatureProps.width;
                     
-                    // Ajustar altura para caber no retângulo
                     const finalSignatureHeight = Math.min(calcSignatureHeight, signatureHeight - 4);
                     
                     doc.addImage(signatureDataURL, 'PNG', margin + 3, yPos + 3, signatureWidth - 6, finalSignatureHeight);
@@ -919,43 +896,41 @@
             
             yPos += signatureHeight + 8;
             
-            // --- NOME DO COLABORADOR ---
             doc.setFont(undefined, 'bold');
             doc.setFontSize(9);
             doc.text(colaborador, pageWidth / 2, yPos, { align: 'center' });
             
-            // ✅ AGORA SALVAR TUDO NO BANCO DE DADOS (COM BASE64)
             const timestamp = new Date().getTime();
-            const fileName = `Checklist_${veiculo.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
+            const fileName = `Checklist_${veiculoNome.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
             
-            // 1. Converter foto para Base64
             const fotoFile = document.getElementById('fotoPainel').files[0];
             const fotoBase64 = await converterParaBase64(fotoFile);
             
-            // 2. Pegar assinatura como Base64
             let assinaturaBase64 = null;
             if (signatureDataURL && !signaturePadBlank()) {
                 assinaturaBase64 = signatureDataURL;
             }
             
-            // 3. 🔥 SALVAR TODOS OS DADOS NO BANCO (SUPABASE + FIREBASE BACKUP)
+            // 🔥 ENVIA DADOS COMPLETOS INCLUINDO VEÍCULO_ID
             const dadosChecklist = {
                 tipo_rota: tipoRota === 'inicio' ? 'INÍCIO' : 'FINAL',
                 data: data,
                 hora: hora,
                 colaborador: colaborador,
                 tipo_veiculo: tipoVeiculo,
-                veiculo: veiculo,
+                veiculo: veiculoNome,
+                veiculo_id: veiculoSelecionado.id, // 🔥 ENVIA O ID DO VEÍCULO
                 placa: placa,
                 quilometragem: parseInt(km),
                 foto_painel_base64: fotoBase64,
                 assinatura_base64: assinaturaBase64
             };
             
+            console.log('📋 Dados para salvar:', dadosChecklist);
+            
             const resultado = await salvarChecklist(dadosChecklist);
             
             if (resultado) {
-              // 4. Salvar PDF localmente
               doc.save(fileName);
               alert('✅ PDF gerado e todos os dados salvos no sistema!');
             } else {
@@ -966,14 +941,12 @@
             console.error('Erro ao gerar PDF:', error);
             alert('Erro ao gerar PDF. Tente novamente.');
         } finally {
-            // Esconder loading
             document.getElementById('loadingPDF').style.display = 'none';
         }
     }
 
     // Inicializar bancos de dados quando a página carrega
     window.addEventListener('load', function() {
-        // Inicializar ambos os bancos
         db = inicializarFirebase();
         supabase = inicializarSupabase();
         
