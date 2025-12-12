@@ -224,8 +224,8 @@
     // ---------- DADOS ----------
     const veiculos = {
       carro: [
-        { id: 1, nome: "Fiat Toro", placa: "QWO9F32" },
-        { id: 2, nome: "Volkswagen Saveiro", placa: "STY1F04" }
+        { id: "b019bb89-bbf3-4d55-be4d-9b07f32823b7", nome: "Fiat Toro", placa: "QWO9F32" },
+        { id: "7b66eb48-42fe-4103-aa75-5fe1ce2f1eda", nome: "Volkswagen Saveiro", placa: "STY1F04" }
       ],
       moto: []
     };
@@ -235,13 +235,13 @@
     let signaturePad, ctx, desenhando = false;
     let db = null;
     let supabase = null;
-    let veiculoSelecionado = null; // 🔥 NOVA VARIÁVEL PARA ARMAZENAR O VEÍCULO COMPLETO
+    let veiculoSelecionado = null;
 
-    // 🔥 CONFIGURAÇÃO SUPABASE INLINE (temporário)
-const SUPABASE_CONFIG = {
-  url: 'https://lrfhudpojewxwknqekdg.supabase.co',
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyZmh1ZHBvamV3eHdrbnFla2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyOTEyNTMsImV4cCI6MjA4MDg2NzI1M30.JmfyUpUO2-qhMsZv17j6YACLfACYG3PneLoLqwtGR4s'
-};
+    // 🔥 CONFIGURAÇÃO SUPABASE INLINE
+    const SUPABASE_CONFIG = {
+      url: 'https://lrfhudpojewxwknqekdg.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyZmh1ZHBvamV3eHdrbnFla2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyOTEyNTMsImV4cCI6MjA4MDg2NzI1M30.JmfyUpUO2-qhMsZv17j6YACLfACYG3PneLoLqwtGR4s'
+    };
 
     // ========== SUPABASE CONFIGURAÇÃO ==========
     function inicializarSupabase() {
@@ -289,29 +289,81 @@ const SUPABASE_CONFIG = {
     }
 
     // ---------- FUNÇÕES DO SISTEMA ----------
-    function carregarVeiculos() {
+    async function carregarVeiculos() {
+      const tipo = document.getElementById("tipoVeiculo").value;
+      const selectVeiculo = document.getElementById("veiculo");
+      
+      selectVeiculo.innerHTML = '<option value="">Carregando...</option>';
+      
+      if (supabase) {
+        try {
+          // 🔥 BUSCAR VEÍCULOS DO SUPABASE
+          const { data: veiculosSupabase, error } = await supabase
+              .from('veiculos')
+              .select('id, nome, placa, tipo_veiculo, marca, modelo')
+              .eq('tipo_veiculo', tipo)
+              .eq('status', 'ativo')
+              .order('nome');
+          
+          if (error) throw error;
+          
+          selectVeiculo.innerHTML = '<option value="">Selecione</option>';
+          
+          if (veiculosSupabase && veiculosSupabase.length > 0) {
+              veiculosSupabase.forEach(v => {
+                  const opt = document.createElement("option");
+                  opt.value = v.id; // 🔥 UUID REAL DO SUPABASE
+                  opt.textContent = `${v.nome} (${v.placa})`;
+                  opt.setAttribute('data-veiculo', JSON.stringify(v));
+                  selectVeiculo.appendChild(opt);
+              });
+              
+              console.log('✅ Veículos carregados do Supabase:', veiculosSupabase.length);
+          } else {
+              selectVeiculo.innerHTML = '<option value="">Nenhum veículo encontrado</option>';
+          }
+          
+        } catch (error) {
+          console.error('❌ Erro ao carregar veículos do Supabase:', error);
+          selectVeiculo.innerHTML = '<option value="">Erro ao carregar</option>';
+          carregarVeiculosLocal();
+        }
+      } else {
+        carregarVeiculosLocal();
+      }
+    }
+
+    // 🔥 FUNÇÃO FALLBACK PARA DADOS LOCAIS
+    function carregarVeiculosLocal() {
       const tipo = document.getElementById("tipoVeiculo").value;
       const selectVeiculo = document.getElementById("veiculo");
       selectVeiculo.innerHTML = '<option value="">Selecione</option>';
+      
       veiculos[tipo]?.forEach(v => {
         const opt = document.createElement("option");
-        opt.value = v.id; // 🔥 AGORA USA O ID COMO VALOR
+        opt.value = v.id; // UUID correto
         opt.textContent = v.nome;
-        opt.setAttribute('data-veiculo', JSON.stringify(v)); // 🔥 ARMAZENA DADOS COMPLETOS
+        opt.setAttribute('data-veiculo', JSON.stringify(v));
         selectVeiculo.appendChild(opt);
       });
     }
 
     function atualizarPlaca() {
-      const tipo = document.getElementById("tipoVeiculo").value;
       const veiculoSelect = document.getElementById("veiculo");
       const selectedOption = veiculoSelect.options[veiculoSelect.selectedIndex];
       
       if (selectedOption.value) {
-        // 🔥 ARMAZENA O VEÍCULO SELECIONADO COMPLETO
-        veiculoSelecionado = JSON.parse(selectedOption.getAttribute('data-veiculo'));
-        const placaInput = document.getElementById("placa");
-        placaInput.value = veiculoSelecionado.placa;
+        try {
+          // 🔥 ARMAZENA O VEÍCULO SELECIONADO COMPLETO
+          veiculoSelecionado = JSON.parse(selectedOption.getAttribute('data-veiculo'));
+          const placaInput = document.getElementById("placa");
+          placaInput.value = veiculoSelecionado.placa;
+          console.log('✅ Veículo selecionado:', veiculoSelecionado);
+        } catch (error) {
+          console.error('❌ Erro ao processar veículo:', error);
+          veiculoSelecionado = null;
+          document.getElementById("placa").value = "";
+        }
       } else {
         veiculoSelecionado = null;
         document.getElementById("placa").value = "";
@@ -356,7 +408,7 @@ const SUPABASE_CONFIG = {
       limparAssinatura();
       fotoPainelDataURL = null;
       document.getElementById('fotoPreview').style.display = 'none';
-      veiculoSelecionado = null; // 🔥 RESETA O VEÍCULO SELECIONADO
+      veiculoSelecionado = null;
     }
 
     function limparFormulario() {
@@ -366,7 +418,7 @@ const SUPABASE_CONFIG = {
         limparAssinatura();
         fotoPainelDataURL = null;
         document.getElementById('fotoPreview').style.display = 'none';
-        veiculoSelecionado = null; // 🔥 RESETA O VEÍCULO SELECIONADO
+        veiculoSelecionado = null;
       }
     }
 
@@ -569,7 +621,7 @@ const SUPABASE_CONFIG = {
                     console.log('📷 Imagem comprimida:', Math.round(fotoComprimida.length / 1024), 'KB');
                 }
                 
-                // 🔥 PREPARAR DADOS COM VEÍCULO_ID
+                // 🔥 PREPARAR DADOS COM VEÍCULO_ID CORRETO
                 const dadosSupabase = {
                     tipo_rota: dados.tipo_rota === 'inicio' ? 'INÍCIO' : 'FINAL',
                     data: dados.data,
@@ -577,15 +629,15 @@ const SUPABASE_CONFIG = {
                     colaborador: dados.colaborador,
                     tipo_veiculo: dados.tipo_veiculo,
                     veiculo: dados.veiculo,
-                    veiculo_id: dados.veiculo_id, // 🔥 AGORA ENVIA O ID DO VEÍCULO
+                    veiculo_id: dados.veiculo_id, // 🔥 UUID CORRETO
                     placa: dados.placa,
-                    km: dados.quilometragem,
+                    km: dados.km, // 🔥 AGORA É 'km' E NÃO 'quilometragem'
                     foto_painel_base64: fotoComprimida,
                     assinatura_base64: dados.assinatura_base64,
                     created_at: new Date().toISOString()
                 };
                 
-                console.log('📤 Dados para Supabase:', dadosSupabase);
+                console.log('📤 Dados para Supabase (com UUID):', dadosSupabase);
                 
                 const { data, error } = await supabase
                     .from('checklists')
@@ -906,7 +958,6 @@ const SUPABASE_CONFIG = {
             doc.setFontSize(9);
             doc.text(colaborador, pageWidth / 2, yPos, { align: 'center' });
             
-            const timestamp = new Date().getTime();
             const fileName = `Checklist_${veiculoNome.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
             
             const fotoFile = document.getElementById('fotoPainel').files[0];
@@ -917,7 +968,7 @@ const SUPABASE_CONFIG = {
                 assinaturaBase64 = signatureDataURL;
             }
             
-            // 🔥 ENVIA DADOS COMPLETOS INCLUINDO VEÍCULO_ID
+            // 🔥 ENVIA DADOS COMPLETOS COM UUID CORRETO
             const dadosChecklist = {
                 tipo_rota: tipoRota === 'inicio' ? 'INÍCIO' : 'FINAL',
                 data: data,
@@ -925,14 +976,14 @@ const SUPABASE_CONFIG = {
                 colaborador: colaborador,
                 tipo_veiculo: tipoVeiculo,
                 veiculo: veiculoNome,
-                veiculo_id: veiculoSelecionado.id, // 🔥 ENVIA O ID DO VEÍCULO
+                veiculo_id: veiculoSelecionado.id, // 🔥 UUID CORRETO DO VEÍCULO
                 placa: placa,
                 km: parseInt(km),
                 foto_painel_base64: fotoBase64,
                 assinatura_base64: assinaturaBase64
             };
             
-            console.log('📋 Dados para salvar:', dadosChecklist);
+            console.log('📋 Dados para salvar (com UUID):', dadosChecklist);
             
             const resultado = await salvarChecklist(dadosChecklist);
             
@@ -963,5 +1014,3 @@ const SUPABASE_CONFIG = {
   </script>
 </body>
 </html>
-
-
