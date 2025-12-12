@@ -623,21 +623,21 @@
                 
                 // 🔥 PREPARAR DADOS COM VEÍCULO_ID CORRETO
                 const dadosSupabase = {
-                    tipo_rota: dados.tipo_rota === 'inicio' ? 'INÍCIO' : 'FINAL',
+                    tipo_rota: dados.tipo_rota, // 🔥 CORRETO - mantém o valor recebido
                     data: dados.data,
                     hora: dados.hora,
                     colaborador: dados.colaborador,
                     tipo_veiculo: dados.tipo_veiculo,
                     veiculo: dados.veiculo,
-                    veiculo_id: dados.veiculo_id, // 🔥 UUID CORRETO
+                    veiculo_id: dados.veiculo_id,
                     placa: dados.placa,
-                    km: dados.km, // 🔥 AGORA É 'km' E NÃO 'quilometragem'
+                    km: dados.km,
                     foto_painel_base64: fotoComprimida,
                     assinatura_base64: dados.assinatura_base64,
                     created_at: new Date().toISOString()
                 };
                 
-                console.log('📤 Dados para Supabase (com UUID):', dadosSupabase);
+                console.log('📤 Dados para Supabase (VERIFICAR tipo_rota):', dadosSupabase);
                 
                 const { data, error } = await supabase
                     .from('checklists')
@@ -785,6 +785,34 @@
             return;
         }
         
+        // 🔥 CONFIRMAÇÃO DO TIPO DE ROTA
+        const rotaTipoSelect = document.getElementById('rotaTipo');
+        const rotaTipoValue = rotaTipoSelect.value;
+        const rotaTipoText = rotaTipoSelect.options[rotaTipoSelect.selectedIndex].text;
+        
+        console.log('🔍 VALIDAÇÃO DO TIPO DE ROTA:');
+        console.log('  - Valor do select:', rotaTipoValue);
+        console.log('  - Texto do select:', rotaTipoText);
+        
+        // 🔥 GARANTIR QUE ESTÁ CORRETO
+        let tipoRotaParaSalvar = 'INÍCIO'; // Default
+        
+        if (rotaTipoValue === 'inicio' || rotaTipoText.includes('Início')) {
+            tipoRotaParaSalvar = 'INÍCIO';
+            console.log('✅ Definido como: INÍCIO');
+        } else if (rotaTipoValue === 'final' || rotaTipoText.includes('Final')) {
+            tipoRotaParaSalvar = 'FINAL';
+            console.log('✅ Definido como: FINAL');
+        } else {
+            console.warn('⚠️ Tipo não reconhecido, usando INÍCIO como padrão');
+        }
+        
+        // 🔥 CONFIRMAÇÃO COM O USUÁRIO
+        if (!confirm(`Confirma que esta é uma rota de: ${rotaTipoText}?\n\nSalvará como: ${tipoRotaParaSalvar}`)) {
+            alert('Por favor, verifique o tipo de rota selecionado.');
+            return;
+        }
+        
         // 🔥 VALIDAÇÃO DE KM MELHORADA
         const placa = document.getElementById('placa').value;
         const kmAtual = parseInt(document.getElementById('km').value);
@@ -858,7 +886,6 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            const tipoRota = document.getElementById('rotaTipo').value;
             const data = document.getElementById('dataAtual').value;
             const hora = document.getElementById('horaAtual').value;
             const colaborador = document.getElementById('colaborador').value;
@@ -906,6 +933,7 @@
             yPos = adicionarCampo('Veículo:', veiculoNome, yPos);
             yPos = adicionarCampo('Placa:', placa, yPos);
             yPos = adicionarCampo('Quilometragem:', km + ' km', yPos);
+            yPos = adicionarCampo('Tipo de Rota:', tipoRotaParaSalvar, yPos);
             
             yPos += 3;
             
@@ -958,7 +986,7 @@
             doc.setFontSize(9);
             doc.text(colaborador, pageWidth / 2, yPos, { align: 'center' });
             
-            const fileName = `Checklist_${veiculoNome.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
+            const fileName = `Checklist_${veiculoNome.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}_${tipoRotaParaSalvar}.pdf`;
             
             const fotoFile = document.getElementById('fotoPainel').files[0];
             const fotoBase64 = await converterParaBase64(fotoFile);
@@ -970,26 +998,26 @@
             
             // 🔥 ENVIA DADOS COMPLETOS COM UUID CORRETO
             const dadosChecklist = {
-                tipo_rota: tipoRota === 'inicio' ? 'INÍCIO' : 'FINAL',
+                tipo_rota: tipoRotaParaSalvar, // 🔥 CORRETO - usa a variável validada
                 data: data,
                 hora: hora,
                 colaborador: colaborador,
                 tipo_veiculo: tipoVeiculo,
                 veiculo: veiculoNome,
-                veiculo_id: veiculoSelecionado.id, // 🔥 UUID CORRETO DO VEÍCULO
+                veiculo_id: veiculoSelecionado.id,
                 placa: placa,
                 km: parseInt(km),
                 foto_painel_base64: fotoBase64,
                 assinatura_base64: assinaturaBase64
             };
             
-            console.log('📋 Dados para salvar (com UUID):', dadosChecklist);
+            console.log('📤 Dados para salvar (CONFIRMAR tipo_rota):', dadosChecklist);
             
             const resultado = await salvarChecklist(dadosChecklist);
             
             if (resultado) {
               doc.save(fileName);
-              alert('✅ PDF gerado e todos os dados salvos no sistema!');
+              alert(`✅ PDF gerado e todos os dados salvos no sistema!\n\nTipo de Rota: ${tipoRotaParaSalvar}`);
             } else {
               alert('❌ Erro ao salvar no banco de dados. O PDF foi gerado, mas os dados não foram salvos.');
             }
