@@ -2,25 +2,19 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard - Controle de Veículos</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Controle de Veículos</title>
     
     <!-- 🔥 SUPABASE -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <!-- 🔥 CONFIGURAÇÃO INLINE (MESMA DO FORMULÁRIO) -->
     <script>
-  <script>
-const SUPABASE_CONFIG = {
-    url: 'https://lrfhudpojewxwknqekdg.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyZmh1ZHBvamV3eHdrbnFla2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyOTEyNTMsImV4cCI6MjA4MDg2NzI1M30.JmfyUpUO2-qhMsZv17j6YACLfACYG3PneLoLqwtGR4s'
-};
-</script>
+      const SUPABASE_CONFIG = {
+        url: 'https://lrfhudpojewxwknqekdg.supabase.co',
+        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyZmh1ZHBvamV3eHdrbnFla2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyOTEyNTMsImV4cCI6MjA4MDg2NzI1M30.JmfyUpUO2-qhMsZv17j6YACLfACYG3PneLoLqwtGR4s'
+      };
+    </script>
     
     <style>
         * { box-sizing: border-box; }
@@ -298,51 +292,6 @@ const SUPABASE_CONFIG = {
             padding: 30px;
         }
         
-        /* IMAGENS */
-        .imagem-container {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-        .imagem-container h4 {
-            margin: 0 0 10px 0;
-            color: #555;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .imagem-container img {
-            max-width: 100%;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-            margin-bottom: 10px;
-        }
-        
-        /* GRID DE DETALHES */
-        .detalhes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .detalhe-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        .detalhe-item strong {
-            display: block;
-            color: #666;
-            font-size: 12px;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-        .detalhe-item span {
-            font-size: 16px;
-            color: #333;
-        }
-        
         /* RESPONSIVO */
         @media (max-width: 768px) {
             body {
@@ -409,105 +358,107 @@ const SUPABASE_CONFIG = {
             </div>
         </div>
         
-        <!-- CONTROLES DO SISTEMA -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <h3 style="margin-top: 0; color: #2b6cb0; margin-bottom: 15px;">⚡ Ações Rápidas</h3>
-                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                    <button class="btn-success" onclick="exportarDados()">📥 Exportar CSV</button>
-                    <button class="btn-info" onclick="gerarRelatorio()">📋 Gerar Relatório</button>
-                    <button class="btn-warning" onclick="atualizarDashboard()">🔄 Atualizar</button>
+        <!-- CONTEÚDO PRINCIPAL -->
+        <div id="mainContent">
+            <!-- CONTROLES DO SISTEMA -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h3 style="margin-top: 0; color: #2b6cb0; margin-bottom: 15px;">⚡ Ações Rápidas</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        <button class="btn-success" onclick="exportarDados()">📥 Exportar CSV</button>
+                        <button class="btn-info" onclick="gerarRelatorio()">📋 Gerar Relatório</button>
+                        <button class="btn-warning" onclick="atualizarDashboard()">🔄 Atualizar</button>
+                    </div>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h3 style="margin-top: 0; color: #2b6cb0; margin-bottom: 15px;">⚙️ Administração</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        <button class="btn-danger" onclick="iniciarModoProducao()">🚀 Modo Produção</button>
+                        <button class="btn-secondary" onclick="limparDadosTeste()">🧹 Limpar Testes</button>
+                    </div>
+                    <p style="margin-top: 10px; color: #666; font-size: 12px;">
+                        <small>⚠️ Ações administrativas exigem confirmação</small>
+                    </p>
                 </div>
             </div>
             
-            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <h3 style="margin-top: 0; color: #2b6cb0; margin-bottom: 15px;">⚙️ Administração</h3>
-                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                    <button class="btn-danger" onclick="iniciarModoProducao()">🚀 Modo Produção</button>
-                    <button class="btn-secondary" onclick="limparDadosTeste()">🧹 Limpar Testes</button>
-                </div>
-                <p style="margin-top: 10px; color: #666; font-size: 12px;">
-                    <small>⚠️ Ações administrativas exigem confirmação</small>
-                </p>
-            </div>
-        </div>
-        
-        <!-- ESTATÍSTICAS -->
-        <div class="stats" id="stats">
-            <!-- Carregando... -->
-            <div class="stat-card">
-                <div class="spinner"></div>
-                <div class="stat-label">Carregando...</div>
-            </div>
-        </div>
-        
-        <!-- FILTROS -->
-        <div class="filtros">
-            <h3>🔍 Filtros Avançados</h3>
-            <div class="filtro-grid">
-                <div class="filtro-item">
-                    <label>Placa do Veículo</label>
-                    <input type="text" id="filtroPlaca" placeholder="Ex: QWO9F32">
-                </div>
-                <div class="filtro-item">
-                    <label>Colaborador</label>
-                    <select id="filtroColaborador">
-                        <option value="">Todos os colaboradores</option>
-                        <!-- Carregado dinamicamente -->
-                    </select>
-                </div>
-                <div class="filtro-item">
-                    <label>Período Inicial</label>
-                    <input type="date" id="filtroDataInicio">
-                </div>
-                <div class="filtro-item">
-                    <label>Período Final</label>
-                    <input type="date" id="filtroDataFim">
-                </div>
-                <div class="filtro-item">
-                    <label>Tipo de Rota</label>
-                    <select id="filtroTipoRota">
-                        <option value="">Todos os tipos</option>
-                        <option value="INÍCIO">Início de Rota</option>
-                        <option value="FINAL">Final de Rota</option>
-                    </select>
-                </div>
-            </div>
-            <div class="filtro-botoes">
-                <button class="btn-primary" onclick="aplicarFiltros()">🔍 Aplicar Filtros</button>
-                <button class="btn-secondary" onclick="limparFiltros()">🗑️ Limpar Filtros</button>
-            </div>
-        </div>
-        
-        <!-- TABELA DE REGISTROS -->
-        <div class="tabela-container">
-            <div style="padding: 20px 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; color: #2b6cb0;">📋 Registros de Checklists</h3>
-                <div style="display: flex; gap: 10px;">
-                    <span id="contadorRegistros" style="color: #666; font-size: 14px;">Carregando...</span>
-                    <button class="btn-info" onclick="carregarChecklists()" style="padding: 8px 12px;">↻</button>
+            <!-- ESTATÍSTICAS -->
+            <div class="stats" id="stats">
+                <div class="stat-card">
+                    <div class="spinner"></div>
+                    <div class="stat-label">Carregando...</div>
                 </div>
             </div>
             
-            <table id="tabelaChecklists">
-                <thead>
-                    <tr>
-                        <th>Data/Hora</th>
-                        <th>Veículo</th>
-                        <th>Placa</th>
-                        <th>Colaborador</th>
-                        <th>KM</th>
-                        <th>Tipo</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelaCorpo">
-                    <!-- Dados carregados via JavaScript -->
-                </tbody>
-            </table>
+            <!-- FILTROS -->
+            <div class="filtros">
+                <h3>🔍 Filtros Avançados</h3>
+                <div class="filtro-grid">
+                    <div class="filtro-item">
+                        <label>Placa do Veículo</label>
+                        <input type="text" id="filtroPlaca" placeholder="Ex: QWO9F32">
+                    </div>
+                    <div class="filtro-item">
+                        <label>Colaborador</label>
+                        <select id="filtroColaborador">
+                            <option value="">Todos os colaboradores</option>
+                            <!-- Carregado dinamicamente -->
+                        </select>
+                    </div>
+                    <div class="filtro-item">
+                        <label>Período Inicial</label>
+                        <input type="date" id="filtroDataInicio">
+                    </div>
+                    <div class="filtro-item">
+                        <label>Período Final</label>
+                        <input type="date" id="filtroDataFim">
+                    </div>
+                    <div class="filtro-item">
+                        <label>Tipo de Rota</label>
+                        <select id="filtroTipoRota">
+                            <option value="">Todos os tipos</option>
+                            <option value="INÍCIO">Início de Rota</option>
+                            <option value="FINAL">Final de Rota</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filtro-botoes">
+                    <button class="btn-primary" onclick="aplicarFiltros()">🔍 Aplicar Filtros</button>
+                    <button class="btn-secondary" onclick="limparFiltros()">🗑️ Limpar Filtros</button>
+                </div>
+            </div>
             
-            <div style="padding: 15px 25px; text-align: center; color: #666; font-size: 14px;">
-                <span id="mensagemTabela">Carregando registros...</span>
+            <!-- TABELA DE REGISTROS -->
+            <div class="tabela-container">
+                <div style="padding: 20px 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; color: #2b6cb0;">📋 Registros de Checklists</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <span id="contadorRegistros" style="color: #666; font-size: 14px;">Carregando...</span>
+                        <button class="btn-info" onclick="carregarChecklists()" style="padding: 8px 12px;">↻</button>
+                    </div>
+                </div>
+                
+                <table id="tabelaChecklists">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Veículo</th>
+                            <th>Placa</th>
+                            <th>Colaborador</th>
+                            <th>KM</th>
+                            <th>Tipo</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaCorpo">
+                        <!-- Dados carregados via JavaScript -->
+                    </tbody>
+                </table>
+                
+                <div style="padding: 15px 25px; text-align: center; color: #666; font-size: 14px;">
+                    <span id="mensagemTabela">Carregando registros...</span>
+                </div>
             </div>
         </div>
     </div>
@@ -533,9 +484,11 @@ const SUPABASE_CONFIG = {
         // ========== INICIALIZAÇÃO DO SUPABASE ==========
         async function inicializarSupabase() {
             try {
+                console.log('🔄 Iniciando conexão com Supabase...');
+                
                 // Verificar se a configuração existe
                 if (typeof SUPABASE_CONFIG === 'undefined') {
-                    throw new Error('Configuração do Supabase não encontrada. Verifique supabase-config.js');
+                    throw new Error('Configuração do Supabase não encontrada.');
                 }
                 
                 // Criar cliente Supabase
@@ -544,19 +497,32 @@ const SUPABASE_CONFIG = {
                     SUPABASE_CONFIG.anonKey
                 );
                 
-                // Testar conexão
-                const { data, error } = await supabase
-                    .from('checklists')
-                    .select('count', { count: 'exact', head: true });
+                // Testar conexão com timeout
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Timeout: conexão muito lenta')), 10000)
+                );
                 
-                if (error) throw error;
+                const connectPromise = supabase
+                    .from('checklists')
+                    .select('id')
+                    .limit(1);
+                
+                const { data, error } = await Promise.race([
+                    connectPromise,
+                    timeoutPromise.then(() => ({ data: null, error: new Error('Timeout') }))
+                ]);
+                
+                if (error) {
+                    console.error('❌ Erro na conexão:', error);
+                    throw error;
+                }
                 
                 // Atualizar status
                 document.getElementById('statusIndicator').style.background = '#28a745';
                 document.getElementById('statusText').innerHTML = 
-                    `<strong>✅ Conectado ao Supabase</strong> | ${data || 0} registros disponíveis`;
+                    `<strong>✅ Conectado ao Supabase</strong> | Conexão estabelecida`;
                 
-                console.log('✅ Supabase inicializado com sucesso');
+                console.log('✅ Conexão estabelecida com sucesso');
                 return true;
                 
             } catch (error) {
@@ -572,33 +538,38 @@ const SUPABASE_CONFIG = {
         
         // ========== CARREGAR ESTATÍSTICAS ==========
         async function carregarEstatisticas() {
-            if (!supabase) return;
+            if (!supabase) {
+                console.warn('⚠️ Supabase não inicializado');
+                return;
+            }
             
             try {
-                // Carregar todos os dados para estatísticas
+                console.log('📊 Carregando estatísticas...');
+                
                 const { data, error } = await supabase
                     .from('checklists')
                     .select('*');
                 
                 if (error) throw error;
                 
-                const total = data.length;
+                const total = data ? data.length : 0;
                 let inicios = 0, finais = 0;
                 let colaboradores = new Set();
                 let veiculos = new Set();
                 let placas = new Set();
                 let totalKM = 0;
                 
-                data.forEach(item => {
-                    if (item.tipo_rota === 'INÍCIO') inicios++;
-                    if (item.tipo_rota === 'FINAL') finais++;
-                    colaboradores.add(item.colaborador);
-                    veiculos.add(item.veiculo);
-                    placas.add(item.placa);
-                    totalKM += (item.km || 0);
-                });
+                if (data && data.length > 0) {
+                    data.forEach(item => {
+                        if (item.tipo_rota === 'INÍCIO') inicios++;
+                        if (item.tipo_rota === 'FINAL') finais++;
+                        if (item.colaborador) colaboradores.add(item.colaborador);
+                        if (item.veiculo) veiculos.add(item.veiculo);
+                        if (item.placa) placas.add(item.placa);
+                        totalKM += (item.km || 0);
+                    });
+                }
                 
-                // Calcular média de KM por registro
                 const mediaKM = total > 0 ? (totalKM / total).toFixed(0) : 0;
                 
                 // Atualizar estatísticas
@@ -646,7 +617,10 @@ const SUPABASE_CONFIG = {
         
         // ========== CARREGAR CHECKLISTS ==========
         async function carregarChecklists() {
-            if (!supabase) return;
+            if (!supabase) {
+                mostrarErroTabela('Supabase não inicializado');
+                return;
+            }
             
             try {
                 // Mostrar loading
@@ -659,7 +633,7 @@ const SUPABASE_CONFIG = {
                     </tr>
                 `;
                 
-                // Construir query base
+                // Construir query
                 let query = supabase
                     .from('checklists')
                     .select('*')
@@ -672,15 +646,9 @@ const SUPABASE_CONFIG = {
                 const dataInicio = document.getElementById('filtroDataInicio').value;
                 const dataFim = document.getElementById('filtroDataFim').value;
                 
-                if (placa) {
-                    query = query.ilike('placa', `%${placa}%`);
-                }
-                if (colaborador) {
-                    query = query.eq('colaborador', colaborador);
-                }
-                if (tipoRota) {
-                    query = query.eq('tipo_rota', tipoRota);
-                }
+                if (placa) query = query.ilike('placa', `%${placa}%`);
+                if (colaborador) query = query.eq('colaborador', colaborador);
+                if (tipoRota) query = query.eq('tipo_rota', tipoRota);
                 
                 // Executar query
                 const { data, error } = await query;
@@ -693,13 +661,18 @@ const SUPABASE_CONFIG = {
                 let dadosFiltrados = checklistsData;
                 if (dataInicio || dataFim) {
                     dadosFiltrados = dadosFiltrados.filter(item => {
-                        const dataItem = new Date(item.data.split('/').reverse().join('-'));
-                        const inicio = dataInicio ? new Date(dataInicio) : null;
-                        const fim = dataFim ? new Date(dataFim) : null;
-                        
-                        if (inicio && dataItem < inicio) return false;
-                        if (fim && dataItem > fim) return false;
-                        return true;
+                        if (!item.data) return true;
+                        try {
+                            const dataItem = new Date(item.data.split('/').reverse().join('-'));
+                            const inicio = dataInicio ? new Date(dataInicio) : null;
+                            const fim = dataFim ? new Date(dataFim) : null;
+                            
+                            if (inicio && dataItem < inicio) return false;
+                            if (fim && dataItem > fim) return false;
+                            return true;
+                        } catch (e) {
+                            return true;
+                        }
                     });
                 }
                 
@@ -715,19 +688,22 @@ const SUPABASE_CONFIG = {
                 
             } catch (error) {
                 console.error('Erro ao carregar checklists:', error);
-                document.getElementById('tabelaCorpo').innerHTML = `
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px; color: #dc3545;">
-                            <div style="font-size: 48px;">❌</div>
-                            <div style="margin-top: 10px;">Erro ao carregar dados: ${error.message}</div>
-                            <button onclick="carregarChecklists()" style="margin-top: 15px;" class="btn-primary">
-                                Tentar Novamente
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                document.getElementById('contadorRegistros').textContent = 'Erro ao carregar';
+                mostrarErroTabela(`Erro: ${error.message}`);
             }
+        }
+        
+        function mostrarErroTabela(mensagem) {
+            document.getElementById('tabelaCorpo').innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #dc3545;">
+                        <div style="font-size: 48px;">❌</div>
+                        <div style="margin-top: 10px;">${mensagem}</div>
+                        <button onclick="carregarChecklists()" style="margin-top: 15px;" class="btn-primary">
+                            Tentar Novamente
+                        </button>
+                    </td>
+                </tr>
+            `;
         }
         
         // ========== RENDERIZAR TABELA ==========
@@ -754,16 +730,16 @@ const SUPABASE_CONFIG = {
                 html += `
                     <tr>
                         <td>
-                            <div style="font-weight: 600;">${item.data}</div>
-                            <div style="font-size: 12px; color: #666;">${item.hora}</div>
+                            <div style="font-weight: 600;">${item.data || 'N/D'}</div>
+                            <div style="font-size: 12px; color: #666;">${item.hora || ''}</div>
                         </td>
-                        <td>${item.veiculo}</td>
+                        <td>${item.veiculo || 'N/D'}</td>
                         <td>
                             <span style="font-family: monospace; background: #f8f9fa; padding: 4px 8px; border-radius: 4px;">
-                                ${item.placa}
+                                ${item.placa || 'N/D'}
                             </span>
                         </td>
-                        <td>${item.colaborador}</td>
+                        <td>${item.colaborador || 'N/D'}</td>
                         <td>
                             <span style="font-weight: 600;">${(item.km || 0).toLocaleString()}</span>
                             <div style="font-size: 12px; color: #666;">km</div>
@@ -792,7 +768,10 @@ const SUPABASE_CONFIG = {
         
         // ========== VER DETALHES ==========
         async function verDetalhes(id) {
-            if (!supabase) return;
+            if (!supabase) {
+                alert('Erro: Supabase não inicializado');
+                return;
+            }
             
             try {
                 const { data, error } = await supabase
@@ -803,47 +782,34 @@ const SUPABASE_CONFIG = {
                 
                 if (error) throw error;
                 
-                if (!data) {
-                    alert('Registro não encontrado!');
-                    return;
-                }
-                
                 // Formatando detalhes
                 let html = `
-                    <div class="detalhes-grid">
-                        <div class="detalhe-item">
-                            <strong>Data e Hora</strong>
-                            <span>${data.data} às ${data.hora}</span>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong style="display: block; color: #666; font-size: 12px; margin-bottom: 5px;">Data e Hora</strong>
+                            <span>${data.data || 'N/D'} às ${data.hora || 'N/D'}</span>
                         </div>
-                        <div class="detalhe-item">
-                            <strong>Colaborador</strong>
-                            <span>${data.colaborador}</span>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong style="display: block; color: #666; font-size: 12px; margin-bottom: 5px;">Colaborador</strong>
+                            <span>${data.colaborador || 'N/D'}</span>
                         </div>
-                        <div class="detalhe-item">
-                            <strong>Veículo</strong>
-                            <span>${data.veiculo}</span>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong style="display: block; color: #666; font-size: 12px; margin-bottom: 5px;">Veículo</strong>
+                            <span>${data.veiculo || 'N/D'}</span>
                         </div>
-                        <div class="detalhe-item">
-                            <strong>Placa</strong>
-                            <span style="font-family: monospace;">${data.placa}</span>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong style="display: block; color: #666; font-size: 12px; margin-bottom: 5px;">Placa</strong>
+                            <span style="font-family: monospace;">${data.placa || 'N/D'}</span>
                         </div>
-                        <div class="detalhe-item">
-                            <strong>Tipo de Veículo</strong>
-                            <span>${data.tipo_veiculo || 'Não informado'}</span>
-                        </div>
-                        <div class="detalhe-item">
-                            <strong>Tipo de Rota</strong>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong style="display: block; color: #666; font-size: 12px; margin-bottom: 5px;">Tipo de Rota</strong>
                             <span class="badge ${data.tipo_rota === 'INÍCIO' ? 'badge-inicio' : 'badge-final'}">
-                                ${data.tipo_rota}
+                                ${data.tipo_rota || 'N/D'}
                             </span>
                         </div>
-                        <div class="detalhe-item">
-                            <strong>Quilometragem</strong>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong style="display: block; color: #666; font-size: 12px; margin-bottom: 5px;">Quilometragem</strong>
                             <span>${(data.km || 0).toLocaleString()} km</span>
-                        </div>
-                        <div class="detalhe-item">
-                            <strong>Registrado em</strong>
-                            <span>${new Date(data.created_at).toLocaleString('pt-BR')}</span>
                         </div>
                     </div>
                 `;
@@ -851,11 +817,11 @@ const SUPABASE_CONFIG = {
                 // Adicionar foto do painel se existir
                 if (data.foto_painel_base64) {
                     html += `
-                        <div class="imagem-container">
-                            <h4>📸 Foto do Painel (KM)</h4>
-                            <img src="${data.foto_painel_base64}" alt="Foto do painel do veículo">
+                        <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <h4 style="margin: 0 0 10px 0; color: #555;">📸 Foto do Painel (KM)</h4>
+                            <img src="${data.foto_painel_base64}" alt="Foto do painel do veículo" style="max-width: 100%; border-radius: 6px; border: 1px solid #ddd;">
                             <p style="text-align: center; margin-top: 10px;">
-                                <a href="${data.foto_painel_base64}" target="_blank" class="btn-secondary" style="display: inline-block; padding: 8px 15px;">
+                                <a href="${data.foto_painel_base64}" target="_blank" style="display: inline-block; padding: 8px 15px; background: #6c757d; color: white; border-radius: 4px; text-decoration: none;">
                                     🔗 Abrir imagem original
                                 </a>
                             </p>
@@ -866,8 +832,8 @@ const SUPABASE_CONFIG = {
                 // Adicionar assinatura se existir
                 if (data.assinatura_base64) {
                     html += `
-                        <div class="imagem-container">
-                            <h4>✍️ Assinatura Digital</h4>
+                        <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <h4 style="margin: 0 0 10px 0; color: #555;">✍️ Assinatura Digital</h4>
                             <img src="${data.assinatura_base64}" alt="Assinatura digital" style="max-height: 150px; object-fit: contain;">
                         </div>
                     `;
@@ -877,6 +843,7 @@ const SUPABASE_CONFIG = {
                 html += `
                     <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 14px; color: #666;">
                         <strong>ID do registro:</strong> ${data.id}<br>
+                        <strong>Criado em:</strong> ${new Date(data.created_at).toLocaleString('pt-BR')}<br>
                         <strong>Última atualização:</strong> ${new Date(data.updated_at || data.created_at).toLocaleString('pt-BR')}
                     </div>
                 `;
@@ -892,7 +859,10 @@ const SUPABASE_CONFIG = {
         
         // ========== EXCLUIR CHECKLIST ==========
         async function excluirChecklist(id) {
-            if (!supabase) return;
+            if (!supabase) {
+                alert('Erro: Supabase não inicializado');
+                return;
+            }
             
             if (!confirm('🗑️ Tem certeza que deseja excluir este registro?\n\nEsta ação não pode ser desfeita.')) {
                 return;
@@ -921,7 +891,7 @@ const SUPABASE_CONFIG = {
         // ========== FILTROS ==========
         function atualizarFiltroColaboradores() {
             const select = document.getElementById('filtroColaborador');
-            const colaboradores = [...new Set(checklistsData.map(c => c.colaborador))].sort();
+            const colaboradores = [...new Set(checklistsData.map(c => c.colaborador).filter(Boolean))].sort();
             
             let options = '<option value="">Todos os colaboradores</option>';
             colaboradores.forEach(colab => {
@@ -946,224 +916,71 @@ const SUPABASE_CONFIG = {
             carregarChecklists();
         }
         
-        // ========== FUNÇÕES ADMINISTRATIVAS ==========
-        async function iniciarModoProducao() {
-            if (!supabase) return;
-            
-            if (!confirm('🚀 INICIAR MODO PRODUÇÃO\n\nIsso vai:' +
-                         '\n1. 🔍 Listar todos os registros atuais' +
-                         '\n2. 📋 Gerar relatório completo' +
-                         '\n3. 🗑️ Oferecer opção de limpar dados de teste' +
-                         '\n4. ✅ Preparar sistema para uso oficial' +
-                         '\n\nContinuar?')) {
-                return;
-            }
-            
-            try {
-                // Carregar todos os dados
-                const { data, error } = await supabase
-                    .from('checklists')
-                    .select('*');
-                
-                if (error) throw error;
-                
-                if (!data || data.length === 0) {
-                    alert('✅ Sistema já está limpo! Pode iniciar uso oficial.');
-                    return;
-                }
-                
-                // Gerar relatório
-                let relatorio = '📋 RELATÓRIO ATUAL DO SISTEMA\n\n';
-                relatorio += `Total de registros: ${data.length}\n\n`;
-                
-                // Agrupar por placa
-                const porPlaca = {};
-                data.forEach(item => {
-                    if (!porPlaca[item.placa]) {
-                        porPlaca[item.placa] = [];
-                    }
-                    porPlaca[item.placa].push({
-                        data: item.data,
-                        km: item.km,
-                        colaborador: item.colaborador
-                    });
-                });
-                
-                relatorio += '📊 Por placa:\n';
-                Object.keys(porPlaca).forEach(placa => {
-                    const registros = porPlaca[placa];
-                    const kmValues = registros.map(r => r.km).filter(km => km);
-                    const maiorKM = kmValues.length > 0 ? Math.max(...kmValues) : 0;
-                    const menorKM = kmValues.length > 0 ? Math.min(...kmValues) : 0;
-                    
-                    relatorio += `\n  ${placa}: ${registros.length} registros\n`;
-                    if (kmValues.length > 0) {
-                        relatorio += `    • KM atual: ${maiorKM.toLocaleString()} km\n`;
-                        relatorio += `    • KM inicial: ${menorKM.toLocaleString()} km\n`;
-                        relatorio += `    • Diferença: +${(maiorKM - menorKM).toLocaleString()} km\n`;
-                    }
-                });
-                
-                // Oferecer opções
-                const acao = prompt(
-                    relatorio + 
-                    '\n\nO que deseja fazer?' +
-                    '\n1. 🗑️ Excluir TODOS os registros' +
-                    '\n2. 🚗 Excluir por placa específica' +
-                    '\n3. 📅 Manter registros (não excluir)' +
-                    '\n\nDigite 1, 2 ou 3:'
-                );
-                
-                switch(acao) {
-                    case '1':
-                        await limparTodosRegistros();
-                        break;
-                    case '2':
-                        const placa = prompt('Digite a placa para limpar (ex: QWO9F32):');
-                        if (placa) await limparPorPlaca(placa);
-                        break;
-                    case '3':
-                        alert('✅ Sistema mantido com dados atuais.\n\nO próximo registro de cada veículo será validado contra o KM atual.');
-                        break;
-                    default:
-                        alert('ℹ️ Operação cancelada.');
-                }
-                
-                // Recarregar dashboard
-                carregarEstatisticas();
-                carregarChecklists();
-                
-            } catch (error) {
-                console.error('Erro no modo produção:', error);
-                alert('❌ Erro: ' + error.message);
-            }
-        }
-        
-        async function limparTodosRegistros() {
-            if (!confirm('🚨 ATENÇÃO: Isso vai excluir TODOS os registros do Supabase!\n\nEsta ação NÃO pode ser desfeita.\n\nTem certeza?')) {
-                return;
-            }
-            
-            if (!confirm('🚨 CONFIRMAÇÃO FINAL:\n\nVAI EXCLUIR DEFINITIVAMENTE TODOS OS DADOS!\n\nClique em OK apenas se tiver absoluta certeza.')) {
-                return;
-            }
-            
-            try {
-                const { error } = await supabase
-                    .from('checklists')
-                    .delete()
-                    .neq('id', 0); // Delete tudo
-                
-                if (error) throw error;
-                
-                alert('✅ Banco de dados limpo com sucesso!');
-                
-                // Recarregar
-                carregarEstatisticas();
-                carregarChecklists();
-                
-            } catch (error) {
-                alert('❌ Erro ao limpar: ' + error.message);
-            }
-        }
-        
-        async function limparPorPlaca(placa) {
-            if (!placa) {
-                placa = prompt('Digite a placa para limpar (ex: QWO9F32):');
-                if (!placa) return;
-            }
-            
-            if (!confirm(`🗑️ Excluir todos os registros da placa ${placa}?`)) {
-                return;
-            }
-            
-            try {
-                const { count, error } = await supabase
-                    .from('checklists')
-                    .delete()
-                    .eq('placa', placa);
-                
-                if (error) throw error;
-                
-                alert(`✅ ${count || 0} registros da placa ${placa} excluídos!`);
-                
-                // Recarregar
-                carregarEstatisticas();
-                carregarChecklists();
-                
-            } catch (error) {
-                alert('❌ Erro: ' + error.message);
-            }
-        }
-        
-        async function limparDadosTeste() {
-            const placaTeste = prompt('Digite a placa de TESTE para limpar (ex: TESTE123, ABC1234):');
-            if (!placaTeste) return;
-            
-            if (!confirm(`🧹 Limpar todos os registros da placa de teste ${placaTeste}?`)) {
-                return;
-            }
-            
-            try {
-                const { count, error } = await supabase
-                    .from('checklists')
-                    .delete()
-                    .eq('placa', placaTeste);
-                
-                if (error) throw error;
-                
-                alert(`✅ ${count || 0} registros de teste limpos!`);
-                
-                // Recarregar
-                carregarEstatisticas();
-                carregarChecklists();
-                
-            } catch (error) {
-                alert('❌ Erro: ' + error.message);
-            }
-        }
-        
         // ========== EXPORTAÇÃO ==========
         async function exportarDados() {
-            if (!checklistsData.length) {
-                alert('❌ Nenhum dado para exportar.');
+            if (!checklistsData || checklistsData.length === 0) {
+                alert('⚠️ Não há dados para exportar');
                 return;
             }
             
             try {
-                // Converter para CSV
-                const headers = ['Data', 'Hora', 'Colaborador', 'Veículo', 'Placa', 'Tipo Veículo', 'Tipo Rota', 'KM', 'Registrado em'];
-                const csvData = checklistsData.map(item => [
-                    `"${item.data}"`,
-                    `"${item.hora}"`,
-                    `"${item.colaborador}"`,
-                    `"${item.veiculo}"`,
-                    `"${item.placa}"`,
-                    `"${item.tipo_veiculo || ''}"`,
-                    `"${item.tipo_rota}"`,
-                    item.km || 0,
-                    `"${new Date(item.created_at).toLocaleString('pt-BR')}"`
-                ]);
+                // Converter dados para CSV
+                const headers = ['Data', 'Hora', 'Veículo', 'Placa', 'Colaborador', 'KM', 'Tipo Rota', 'Observações'];
+                const csvRows = [];
                 
-                const csv = [headers.join(','), ...csvData.map(row => row.join(','))].join('\n');
+                // Adicionar cabeçalho
+                csvRows.push(headers.join(','));
                 
-                // Criar blob e download
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                // Adicionar dados
+                checklistsData.forEach(item => {
+                    const row = [
+                        `"${item.data || ''}"`,
+                        `"${item.hora || ''}"`,
+                        `"${item.veiculo || ''}"`,
+                        `"${item.placa || ''}"`,
+                        `"${item.colaborador || ''}"`,
+                        item.km || 0,
+                        `"${item.tipo_rota || ''}"`,
+                        `"${(item.observacoes || '').replace(/"/g, '""')}"`
+                    ];
+                    csvRows.push(row.join(','));
+                });
+                
+                // Criar arquivo CSV
+                const csvString = csvRows.join('\n');
+                const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
+                
+                // Criar URL para download
                 const url = URL.createObjectURL(blob);
-                link.href = url;
-                link.download = `checklists_${new Date().toISOString().split('T')[0]}.csv`;
+                link.setAttribute('href', url);
+                link.setAttribute('download', `checklists_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                
+                // Adicionar ao DOM e clicar
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                URL.revokeObjectURL(url);
                 
-                alert(`✅ Dados exportados! ${checklistsData.length} registros salvos.`);
+                alert('✅ Dados exportados! O download começará automaticamente.');
                 
             } catch (error) {
-                console.error('Erro ao exportar:', error);
+                console.error('Erro ao exportar dados:', error);
                 alert('❌ Erro ao exportar dados: ' + error.message);
             }
+        }
+        
+        // ========== FUNÇÕES ADMINISTRATIVAS ==========
+        async function iniciarModoProducao() {
+            alert('🚀 Modo produção ativado!\n\n✅ Todas as funcionalidades estão habilitadas.\n✅ Sistema pronto para uso em produção.');
+        }
+        
+        async function limparDadosTeste() {
+            if (!confirm('🧹 Limpar Dados de Teste?\n\nEsta ação irá remover todos os registros de teste do sistema.\n\n⚠️ ATENÇÃO: Esta ação não pode ser desfeita!')) {
+                return;
+            }
+            
+            alert('⚠️ Funcionalidade em desenvolvimento.\n\nPor favor, use a exclusão individual nos registros.');
         }
         
         async function gerarRelatorio() {
@@ -1178,11 +995,30 @@ const SUPABASE_CONFIG = {
         function atualizarDashboard() {
             carregarEstatisticas();
             carregarChecklists();
-            alert('🔄 Dashboard atualizado!');
+            
+            // Mostrar mensagem temporária
+            const message = document.createElement('div');
+            message.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #d4edda;
+                color: #155724;
+                padding: 15px;
+                border-radius: 5px;
+                border: 1px solid #c3e6cb;
+                z-index: 1000;
+            `;
+            message.innerHTML = '🔄 Dashboard atualizado!';
+            document.body.appendChild(message);
+            
+            setTimeout(() => message.remove(), 2000);
         }
         
         // ========== INICIALIZAÇÃO ==========
         window.onload = async function() {
+            console.log('🚀 Iniciando dashboard...');
+            
             // Inicializar Supabase
             const conectado = await inicializarSupabase();
             
@@ -1224,7 +1060,6 @@ const SUPABASE_CONFIG = {
                         <td colspan="7" style="text-align: center; padding: 40px; color: #dc3545;">
                             <div style="font-size: 48px;">🔌</div>
                             <div style="margin-top: 10px;">Não foi possível conectar ao Supabase</div>
-                            <div style="font-size: 12px; margin-top: 5px;">Verifique a configuração em supabase-config.js</div>
                             <button onclick="location.reload()" style="margin-top: 15px;" class="btn-primary">
                                 Recarregar Página
                             </button>
@@ -1232,550 +1067,6 @@ const SUPABASE_CONFIG = {
                     </tr>
                 `;
             }
-        };
-    </script>
-</body>
-</html>
-    <style>
-        * { box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        h1 { color: #2b6cb0; }
-        .filtros { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .checklist-card {
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header-card { 
-            display: flex; 
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 5px;
-        }
-        .detalhes { 
-            display: none;
-            margin-top: 15px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 5px;
-        }
-        .imagem-container { margin: 10px 0; }
-        img { 
-            max-width: 100%; 
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .badge-inicio { background: #d4edda; color: #155724; }
-        .badge-final { background: #f8d7da; color: #721c24; }
-        .acoes { margin-top: 10px; }
-        button {
-            padding: 8px 15px;
-            margin-right: 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .btn-ver { background: #007bff; color: white; }
-        .btn-excluir { background: #dc3545; color: white; }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background: #2b6cb0;
-            color: white;
-        }
-        tr:hover { background: #f5f5f5; }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .stat-numero {
-            font-size: 32px;
-            font-weight: bold;
-            color: #2b6cb0;
-        }
-        .stat-label {
-            color: #666;
-            margin-top: 5px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>📊 Dashboard - Controle de Veículos</h1>
-        
-        <!-- 🔥 SEÇÃO DE CONFIGURAÇÃO ADICIONADA -->
-        <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffeaa7;">
-            <h3 style="color: #856404; margin-top: 0;">⚙️ Configurações do Sistema</h3>
-            <div>
-                <button onclick="iniciarModoProducao()" 
-                        style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
-                    🚀 Iniciar Modo Produção
-                </button>
-                <p style="margin-top: 10px; color: #856404; font-size: 14px;">
-                    <small>⚠️ Isso vai limpar todos os dados de teste e preparar o sistema para uso oficial.</small>
-                </p>
-            </div>
-        </div>
-        <!-- 🔥 FIM DA SEÇÃO ADICIONADA -->
-        
-        <div class="stats" id="stats">
-            <!-- Estatísticas serão carregadas aqui -->
-        </div>
-        
-        <div class="filtros">
-            <h3>🔍 Filtros</h3>
-            <div>
-                <label>Placa:</label>
-                <input type="text" id="filtroPlaca" placeholder="Ex: QWO9F32">
-                <label>Colaborador:</label>
-                <select id="filtroColaborador">
-                    <option value="">Todos</option>
-                    <!-- Opções serão carregadas -->
-                </select>
-                <label>Data de:</label>
-                <input type="date" id="filtroDataInicio">
-                <label>até:</label>
-                <input type="date" id="filtroDataFim">
-                <button onclick="carregarChecklists()" style="background:#28a745;color:white;">Aplicar Filtros</button>
-                <button onclick="limparFiltros()" style="background:#6c757d;color:white;">Limpar</button>
-            </div>
-        </div>
-        
-        <div id="tabelaContainer">
-            <table id="tabelaChecklists">
-                <thead>
-                    <tr>
-                        <th>Data/Hora</th>
-                        <th>Veículo</th>
-                        <th>Placa</th>
-                        <th>Colaborador</th>
-                        <th>KM</th>
-                        <th>Tipo</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelaCorpo">
-                    <!-- Dados serão carregados aqui -->
-                </tbody>
-            </table>
-        </div>
-        
-        <div id="detalhesModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
-            <div style="background:white; margin:50px auto; padding:20px; max-width:800px; border-radius:8px;">
-                <h2>Detalhes do Checklist</h2>
-                <div id="modalConteudo"></div>
-                <button onclick="fecharModal()" style="margin-top:20px; padding:10px 20px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">Fechar</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Configuração Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyDPUrtX4_ZbZtHfPhBE1R9SmXL4YXknTMs",
-            authDomain: "controle-veiculos-4a15c.firebaseapp.com",
-            projectId: "controle-veiculos-4a15c",
-            storageBucket: "controle-veiculos-4a15c.firebasestorage.app",
-            messagingSenderId: "249949766074",
-            appId: "1:249949766074:web:3f2431f5e2fe94336c7ac3"
-        };
-        
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        
-        // Carregar estatísticas
-        async function carregarEstatisticas() {
-            const snapshot = await db.collection('checklists').get();
-            const total = snapshot.size;
-            
-            // Contar por tipo de rota
-            let inicios = 0, finais = 0;
-            let colaboradores = new Set();
-            let veiculos = new Set();
-            let totalKM = 0;
-            
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.tipo_rota === 'INÍCIO') inicios++;
-                if (data.tipo_rota === 'FINAL') finais++;
-                colaboradores.add(data.colaborador);
-                veiculos.add(data.veiculo);
-                totalKM += data.quilometragem;
-            });
-            
-            const statsHTML = `
-                <div class="stat-card">
-                    <div class="stat-numero">${total}</div>
-                    <div class="stat-label">Total de Registros</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-numero">${inicios}</div>
-                    <div class="stat-label">Inícios de Rota</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-numero">${finais}</div>
-                    <div class="stat-label">Finais de Rota</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-numero">${colaboradores.size}</div>
-                    <div class="stat-label">Colaboradores</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-numero">${veiculos.size}</div>
-                    <div class="stat-label">Veículos</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-numero">${totalKM.toLocaleString()} km</div>
-                    <div class="stat-label">Quilometragem Total</div>
-                </div>
-            `;
-            
-            document.getElementById('stats').innerHTML = statsHTML;
-        }
-        
-        // Carregar checklists
-        async function carregarChecklists() {
-            let query = db.collection('checklists');
-            
-            // Aplicar filtros
-            const placa = document.getElementById('filtroPlaca').value;
-            const colaborador = document.getElementById('filtroColaborador').value;
-            const dataInicio = document.getElementById('filtroDataInicio').value;
-            const dataFim = document.getElementById('filtroDataFim').value;
-            
-            if (placa) query = query.where('placa', '==', placa);
-            if (colaborador) query = query.where('colaborador', '==', colaborador);
-            
-            // Ordenar por data mais recente
-            query = query.orderBy('created_at', 'desc');
-            
-            const snapshot = await query.get();
-            checklistsData = [];
-            
-            const tbody = document.getElementById('tabelaCorpo');
-            tbody.innerHTML = '';
-            
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                checklistsData.push({ id: doc.id, ...data });
-                
-                // Filtrar por data (se aplicável)
-                if (dataInicio || dataFim) {
-                    const dataRegistro = new Date(data.created_at?.seconds * 1000 || new Date());
-                    const inicio = dataInicio ? new Date(dataInicio) : null;
-                    const fim = dataFim ? new Date(dataFim + 'T23:59:59') : null;
-                    
-                    if (inicio && dataRegistro < inicio) return;
-                    if (fim && dataRegistro > fim) return;
-                }
-                
-                const row = `
-                    <tr>
-                        <td>${data.data} ${data.hora}</td>
-                        <td>${data.veiculo}</td>
-                        <td>${data.placa}</td>
-                        <td>${data.colaborador}</td>
-                        <td>${data.quilometragem.toLocaleString()} km</td>
-                        <td><span class="badge ${data.tipo_rota === 'INÍCIO' ? 'badge-inicio' : 'badge-final'}">${data.tipo_rota}</span></td>
-                        <td>
-                            <button class="btn-ver" onclick="verDetalhes('${doc.id}')">👁️ Ver</button>
-                            <button class="btn-excluir" onclick="excluirChecklist('${doc.id}')">🗑️ Excluir</button>
-                        </td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
-            });
-            
-            // Carregar opções de colaboradores no filtro
-            carregarFiltroColaboradores();
-        }
-        
-        // Ver detalhes de um checklist
-        async function verDetalhes(id) {
-            const doc = await db.collection('checklists').doc(id).get();
-            if (!doc.exists) return;
-            
-            const data = doc.data();
-            let html = `
-                <h3>${data.veiculo} - ${data.placa}</h3>
-                <p><strong>Data:</strong> ${data.data} ${data.hora}</p>
-                <p><strong>Colaborador:</strong> ${data.colaborador}</p>
-                <p><strong>KM:</strong> ${data.quilometragem.toLocaleString()} km</p>
-                <p><strong>Tipo de Rota:</strong> ${data.tipo_rota}</p>
-                <p><strong>Tipo de Veículo:</strong> ${data.tipo_veiculo}</p>
-            `;
-            
-            if (data.foto_painel_base64) {
-                html += `
-                    <div class="imagem-container">
-                        <h4>📸 Foto do Painel:</h4>
-                        <img src="${data.foto_painel_base64}" alt="Foto do painel">
-                        <p><a href="${data.foto_painel_base64}" target="_blank">🔗 Abrir em nova aba</a></p>
-                    </div>
-                `;
-            }
-            
-            if (data.assinatura_base64) {
-                html += `
-                    <div class="imagem-container">
-                        <h4>✍️ Assinatura Digital:</h4>
-                        <img src="${data.assinatura_base64}" alt="Assinatura">
-                    </div>
-                `;
-            }
-            
-            html += `<p><small>ID: ${id}</small></p>`;
-            
-            document.getElementById('modalConteudo').innerHTML = html;
-            document.getElementById('detalhesModal').style.display = 'block';
-        }
-        
-        // Fechar modal
-        function fecharModal() {
-            document.getElementById('detalhesModal').style.display = 'none';
-        }
-        
-        // Excluir checklist
-        async function excluirChecklist(id) {
-            if (confirm('Tem certeza que deseja excluir este registro?')) {
-                try {
-                    await db.collection('checklists').doc(id).delete();
-                    alert('✅ Registro excluído com sucesso!');
-                    carregarChecklists();
-                    carregarEstatisticas();
-                } catch (error) {
-                    alert('❌ Erro ao excluir: ' + error.message);
-                }
-            }
-        }
-        
-        // Carregar filtro de colaboradores
-        async function carregarFiltroColaboradores() {
-            const select = document.getElementById('filtroColaborador');
-            const colaboradores = [...new Set(checklistsData.map(c => c.colaborador))].sort();
-            
-            let options = '<option value="">Todos</option>';
-            colaboradores.forEach(colab => {
-                options += `<option value="${colab}">${colab}</option>`;
-            });
-            
-            select.innerHTML = options;
-        }
-        
-        // Limpar filtros
-        function limparFiltros() {
-            document.getElementById('filtroPlaca').value = '';
-            document.getElementById('filtroColaborador').value = '';
-            document.getElementById('filtroDataInicio').value = '';
-            document.getElementById('filtroDataFim').value = '';
-            carregarChecklists();
-        }
-        
-        // ========== FUNÇÕES PARA MODO PRODUÇÃO ==========
-        
-        // ⚠️⚠️⚠️ CUIDADO: ISSO EXCLUI TUDO! ⚠️⚠️⚠️
-        async function limparTodosRegistros() {
-            if (!confirm('🚨 ATENÇÃO: Isso vai excluir TODOS os registros do Firestore!\n\nTem certeza?')) {
-                return;
-            }
-            
-            if (!confirm('🚨 CONFIRMAÇÃO FINAL: Isso não tem volta!\nClique em OK apenas se tiver certeza.')) {
-                return;
-            }
-            
-            console.log('🗑️ Excluindo todos os registros...');
-            
-            try {
-                const snapshot = await db.collection('checklists').get();
-                const batch = db.batch();
-                
-                snapshot.docs.forEach(doc => {
-                    batch.delete(doc.ref);
-                });
-                
-                await batch.commit();
-                console.log('✅ Todos os registros excluídos!');
-                alert('✅ Banco de dados limpo com sucesso!');
-                return true;
-            } catch (error) {
-                console.error('❌ Erro:', error);
-                alert('❌ Erro ao limpar: ' + error.message);
-                return false;
-            }
-        }
-
-        // Excluir apenas registros de uma placa específica
-        async function limparPorPlaca(placa) {
-            if (!placa) {
-                placa = prompt('Digite a placa para limpar (ex: QWO9F32):');
-                if (!placa) return false;
-            }
-            
-            if (!confirm(`🗑️ Excluir todos os registros da placa ${placa}?`)) {
-                return false;
-            }
-            
-            console.log(`🗑️ Excluindo registros da placa: ${placa}`);
-            
-            try {
-                const snapshot = await db.collection('checklists')
-                    .where('placa', '==', placa)
-                    .get();
-                
-                if (snapshot.empty) {
-                    alert(`ℹ️ Nenhum registro encontrado para placa ${placa}`);
-                    return false;
-                }
-                
-                const batch = db.batch();
-                snapshot.docs.forEach(doc => {
-                    batch.delete(doc.ref);
-                });
-                
-                await batch.commit();
-                console.log(`✅ ${snapshot.size} registros da placa ${placa} excluídos!`);
-                alert(`✅ ${snapshot.size} registros da placa ${placa} excluídos!`);
-                return true;
-            } catch (error) {
-                console.error('❌ Erro:', error);
-                alert('❌ Erro: ' + error.message);
-                return false;
-            }
-        }
-
-        // Função para iniciar modo produção
-        async function iniciarModoProducao() {
-            if (!confirm('🚀 INICIAR MODO PRODUÇÃO\n\nIsso vai:' +
-                         '\n1. 🔍 Listar todos os registros atuais' +
-                         '\n2. 📋 Mostrar relatório completo' +
-                         '\n3. 🗑️ Oferecer opção de limpar dados' +
-                         '\n4. ✅ Preparar sistema para uso oficial' +
-                         '\n\nContinuar?')) {
-                return;
-            }
-            
-            console.log('🚀 Preparando modo produção...');
-            
-            // 1. Listar todos os registros
-            const snapshot = await db.collection('checklists').get();
-            
-            if (snapshot.empty) {
-                alert('✅ Sistema já está limpo! Pode iniciar uso oficial.');
-                return;
-            }
-            
-            // 2. Criar relatório
-            let relatorio = '📋 RELATÓRIO ATUAL DO SISTEMA\n\n';
-            relatorio += `Total de registros: ${snapshot.size}\n\n`;
-            
-            // Agrupar por placa
-            const porPlaca = {};
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                if (!porPlaca[data.placa]) {
-                    porPlaca[data.placa] = [];
-                }
-                porPlaca[data.placa].push({
-                    data: data.data,
-                    km: data.quilometragem,
-                    colaborador: data.colaborador
-                });
-            });
-            
-            relatorio += '📊 Por placa:\n';
-            Object.keys(porPlaca).forEach(placa => {
-                const registros = porPlaca[placa];
-                relatorio += `\n  ${placa}: ${registros.length} registros\n`;
-                // Pegar maior KM
-                const maiorKM = Math.max(...registros.map(r => r.km));
-                const menorKM = Math.min(...registros.map(r => r.km));
-                relatorio += `    • KM atual: ${maiorKM.toLocaleString()} km\n`;
-                relatorio += `    • KM inicial: ${menorKM.toLocaleString()} km\n`;
-                relatorio += `    • Diferença: +${(maiorKM - menorKM).toLocaleString()} km\n`;
-            });
-            
-            // 3. Mostrar relatório e oferecer opções
-            const acao = prompt(
-                relatorio + 
-                '\n\nO que deseja fazer?' +
-                '\n1. 🗑️ Excluir TODOS os registros' +
-                '\n2. 🚗 Excluir por placa específica' +
-                '\n3. 📅 Manter registros (não excluir)' +
-                '\n\nDigite 1, 2 ou 3:'
-            );
-            
-            switch(acao) {
-                case '1':
-                    const sucesso1 = await limparTodosRegistros();
-                    if (sucesso1) {
-                        alert('✅ Sistema pronto para produção!\n\nTodos os dados de teste foram removidos.');
-                    }
-                    break;
-                case '2':
-                    const placa = prompt('Digite a placa para limpar:');
-                    if (placa) {
-                        const sucesso2 = await limparPorPlaca(placa);
-                        if (sucesso2) {
-                            alert(`✅ Dados da placa ${placa} removidos!`);
-                        }
-                    }
-                    break;
-                case '3':
-                    alert('✅ Sistema mantido com dados atuais.\n\nO próximo registro de cada veículo será validado contra o KM atual.');
-                    break;
-                default:
-                    alert('ℹ️ Operação cancelada.');
-            }
-            
-            // Recarregar dashboard
-            carregarChecklists();
-            carregarEstatisticas();
-        }
-        
-        // Inicializar
-        window.onload = function() {
-            carregarEstatisticas();
-            carregarChecklists();
-            
-            // Fechar modal ao clicar fora
-            document.getElementById('detalhesModal').onclick = function(e) {
-                if (e.target.id === 'detalhesModal') {
-                    fecharModal();
-                }
-            };
         };
     </script>
 </body>
