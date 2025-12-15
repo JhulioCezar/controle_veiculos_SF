@@ -11,7 +11,1356 @@
   <!-- 🔥 BIBLIOTECA PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle de Uso de Veículos</title>
 
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2b6cb0">
+
+  <!-- 🔥 BIBLIOTECA PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <!-- 🔥 SUPABASE -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f3f6f9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      width: 95%;
+      max-width: 650px;
+      border-radius: 15px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      margin-top: 20px;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+      color: #2b6cb0;
+    }
+    img.logo {
+      display: block;
+      margin: 0 auto 10px;
+      max-width: 160px;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 12px;
+    }
+    select, input, canvas {
+      width: 100%;
+      padding: 8px;
+      margin-top: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+      transition: all 0.3s;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: #2b6cb0;
+      box-shadow: 0 0 0 2px rgba(43, 108, 176, 0.2);
+    }
+    button {
+      margin-top: 15px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: #2b6cb0;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #1d4f91;
+    }
+    .btn-secondary {
+      background-color: #6c757d;
+    }
+    .btn-secondary:hover {
+      background-color: #565e64;
+    }
+    .btn-clear {
+      background-color: #e63946;
+    }
+    .btn-clear:hover {
+      background-color: #b91d2e;
+    }
+    #signature-pad {
+      border: 2px dashed #aaa;
+      height: 150px;
+      width: 100%;
+      background-color: white;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    .loading-pdf {
+      display: none;
+      text-align: center;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      margin: 10px 0;
+    }
+    #fotoPreview {
+      max-width: 100%;
+      margin-top: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      display: none;
+    }
+    .km-valido {
+      border-color: #28a745 !important;
+      background-color: #d4edda !important;
+    }
+    .km-alerta {
+      border-color: #ffc107 !important;
+      background-color: #fff3cd !important;
+    }
+    .km-invalido {
+      border-color: #dc3545 !important;
+      background-color: #f8d7da !important;
+    }
+    .status-conexao {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: #f8f9fa;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #666;
+      border: 1px solid #dee2e6;
+      z-index: 1000;
+    }
+    .error-message {
+      color: #dc3545;
+      font-size: 12px;
+      margin-top: 3px;
+      display: none;
+    }
+    
+    /* 🔥 ESTILOS PARA BOTÃO DE INSTALAÇÃO */
+    .install-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+      color: white !important;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 10px auto;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      transition: transform 0.3s, box-shadow 0.3s;
+      width: 100%;
+    }
+    
+    .install-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    }
+    
+    .install-btn:active {
+      transform: translateY(0);
+    }
+    
+    .install-container {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+      border-radius: 10px; 
+      padding: 15px; 
+      border: 2px solid #2b6cb0;
+      margin: 15px 0;
+      text-align: center;
+    }
+    
+    .install-tip {
+      font-size: 11px; 
+      color: #6c757d; 
+      max-width: 300px; 
+      margin: 5px auto 0;
+    }
+    
+    @keyframes slideDown {
+      from { top: -100px; opacity: 0; }
+      to { top: 20px; opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+      from { top: 20px; opacity: 1; }
+      to { top: -100px; opacity: 0; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- LOGO -->
+    <img src="https://i.imgur.com/SEr4lkm.png" alt="Logo" class="logo" />
+    <h2>Controle de Uso de Veículos</h2>
+    
+    <!-- 🔥 BOTÃO INSTALAR APP (inicialmente oculto) -->
+    <div id="installContainer" style="display: none;">
+      <div class="install-container">
+        <button id="installButton" class="install-btn">
+          <span style="font-size: 24px;">📱</span>
+          <div style="text-align: left; flex-grow: 1;">
+            <div style="font-weight: bold;">Instalar App</div>
+            <div style="font-size: 12px; opacity: 0.8;">Acesso rápido e offline</div>
+          </div>
+          <span style="font-size: 20px;">↓</span>
+        </button>
+      </div>
+      <p class="install-tip">
+        Instale para usar sem internet e com ícone na tela inicial
+      </p>
+    </div>
+
+    <!-- SELEÇÃO DE ROTA -->
+    <div id="step-selection">
+      <label for="rotaTipo">Selecione o Tipo de Rota:</label>
+      <select id="rotaTipo" required>
+        <option value="">Selecione</option>
+        <option value="inicio">Início de Rota</option>
+        <option value="final">Final de Rota</option>
+      </select>
+      <button onclick="continuarRota()">Continuar</button>
+    </div>
+
+    <!-- FORMULÁRIO -->
+    <form id="formulario" style="display:none;">
+      <label>Data:</label>
+      <input type="text" id="dataAtual" readonly>
+
+      <label>Hora:</label>
+      <input type="text" id="horaAtual" readonly>
+
+      <label>Colaborador:</label>
+      <select id="colaborador" required>
+        <option value="">Carregando colaboradores...</option>
+      </select>
+      <div id="loadingColaboradores" style="display: none; text-align: center; padding: 10px;">
+        <div style="width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #2b6cb0; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+        <p style="margin-top: 5px; font-size: 12px; color: #666;">Carregando colaboradores...</p>
+      </div>
+
+      <label>Tipo de Veículo:</label>
+      <select id="tipoVeiculo" onchange="carregarVeiculos()" required>
+        <option value="">Selecione</option>
+        <option value="carro">Carro</option>
+        <option value="moto">Moto</option>
+      </select>
+
+      <label>Veículo:</label>
+      <select id="veiculo" onchange="atualizarPlaca()" required>
+        <option value="">Selecione o tipo de veículo</option>
+      </select>
+
+      <label>Placa:</label>
+      <input type="text" id="placa" readonly>
+
+      <label>Quilometragem:</label>
+      <input type="number" id="km" required placeholder="Digite a quilometragem atual">
+      <div class="error-message" id="kmError"></div>
+
+      <label>Foto do Painel (KM):</label>
+      <input type="file" id="fotoPainel" accept="image/*" capture="environment" required onchange="previewFoto(event)">
+      <img id="fotoPreview" src="" alt="Preview da foto do painel">
+
+      <label>Assinatura Digital:</label>
+      <canvas id="signature-pad"></canvas>
+      <button type="button" onclick="limparAssinatura()">Limpar Assinatura</button>
+
+      <p id="nomeAssinatura" style="text-align:center;font-weight:bold;margin-top:10px;"></p>
+
+      <!-- 🔥 LOADING DO PDF -->
+      <div id="loadingPDF" class="loading-pdf">
+        <div style="width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #2b6cb0; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+        <p style="margin-top: 10px;">Gerando PDF, aguarde...</p>
+      </div>
+
+      <button type="button" class="btn-secondary" onclick="voltarInicio()">Voltar</button>
+      <button type="button" class="btn-clear" onclick="limparFormulario()">Limpar Formulário</button>
+      <button type="button" onclick="gerarESalvarPDF()">Gerar e Salvar PDF</button>
+    </form>
+  </div>
+
+  <script>
+    // ---------- PWA ----------
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js")
+        .then(() => console.log("Service Worker registrado!"))
+        .catch(err => console.log("Erro ao registrar o Service Worker:", err));
+    }
+
+    // ---------- DADOS ----------
+    const veiculos = {
+      carro: [
+        { id: "b019bb89-bbf3-4d55-be4d-9b07f32823b7", nome: "Fiat Toro", placa: "QWO9F32" },
+        { id: "7b66eb48-42fe-4103-aa75-5fe1ce2f1eda", nome: "Volkswagen Saveiro", placa: "STY1F04" }
+      ],
+      moto: []
+    };
+
+    // ---------- VARIÁVEIS GLOBAIS ----------
+    let fotoPainelDataURL = null;
+    let signaturePad, ctx, desenhando = false;
+    let supabase = null;
+    let veiculoSelecionado = null;
+    let deferredPrompt = null; // 🔥 PARA INSTALAÇÃO PWA
+
+    // 🔥 CONFIGURAÇÃO SUPABASE INLINE
+    const SUPABASE_CONFIG = {
+      url: 'https://lrfhudpojewxwknqekdg.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyZmh1ZHBvamV3eHdrbnFla2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyOTEyNTMsImV4cCI6MjA4MDg2NzI1M30.JmfyUpUO2-qhMsZv17j6YACLfACYG3PneLoLqwtGR4s'
+    };
+
+    // ========== PWA INSTALL PROMPT ==========
+    // 🔥 1. CAPTURAR O EVENTO DE INSTALAÇÃO
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('✅ beforeinstallprompt disparado');
+      
+      // Previne que o prompt apareça automaticamente
+      e.preventDefault();
+      
+      // Armazena o evento para usar depois
+      deferredPrompt = e;
+      
+      // Mostra o botão de instalação
+      const installContainer = document.getElementById('installContainer');
+      if (installContainer) {
+        installContainer.style.display = 'block';
+      }
+      
+      // 🔥 VERIFICAR SE JÁ ESTÁ INSTALADO
+      verificarSeAppInstalado();
+    });
+
+    // 🔥 2. BOTÃO DE INSTALAÇÃO
+    const installButton = document.getElementById('installButton');
+    if (installButton) {
+      installButton.addEventListener('click', async () => {
+        if (!deferredPrompt) {
+          alert('O app já está instalado ou não suporta instalação.');
+          return;
+        }
+        
+        // Mostra o prompt de instalação
+        deferredPrompt.prompt();
+        
+        // Espera pelo resultado
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        console.log(`Usuário ${outcome === 'accepted' ? 'aceitou' : 'recusou'} a instalação`);
+        
+        // Limpa o evento
+        deferredPrompt = null;
+        
+        // Esconde o botão
+        const installContainer = document.getElementById('installContainer');
+        if (installContainer) {
+          installContainer.style.display = 'none';
+        }
+      });
+    }
+
+    // 🔥 3. VERIFICAR SE O APP JÁ ESTÁ INSTALADO
+    function verificarSeAppInstalado() {
+      // Verifica se está em modo standalone (app instalado)
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         window.navigator.standalone ||
+                         document.referrer.includes('android-app://');
+      
+      if (isStandalone) {
+        console.log('📱 App já está instalado');
+        const installContainer = document.getElementById('installContainer');
+        if (installContainer) {
+          installContainer.style.display = 'none';
+        }
+        return true;
+      }
+      return false;
+    }
+
+    // 🔥 4. DETECTAR APÓS INSTALAÇÃO
+    window.addEventListener('appinstalled', (evt) => {
+      console.log('🎉 App instalado com sucesso!');
+      
+      // Esconde o botão
+      const installContainer = document.getElementById('installContainer');
+      if (installContainer) {
+        installContainer.style.display = 'none';
+      }
+      
+      // Mostra mensagem de sucesso
+      mostrarNotificacaoInstalacao();
+      
+      // Atualiza o status
+      deferredPrompt = null;
+    });
+
+    // 🔥 5. NOTIFICAÇÃO DE SUCESSO
+    function mostrarNotificacaoInstalacao() {
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #28a745;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        animation: slideDown 0.5s ease-out;
+      `;
+      
+      notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">✅</span>
+          <div>
+            <strong>App instalado com sucesso!</strong><br>
+            <small>Agora você pode acessar offline</small>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.animation = 'slideUp 0.5s ease-out';
+        setTimeout(() => notification.remove(), 500);
+      }, 3000);
+    }
+
+    // 🔥 6. VERIFICAR AO CARREGAR A PÁGINA
+    setTimeout(() => {
+      if (!verificarSeAppInstalado() && !deferredPrompt) {
+        console.log('ℹ️ Prompt de instalação não disponível ainda');
+        
+        // 🔥 MOSTRAR MENSAGEM EDUCATIVA APÓS 5 SEGUNDOS (opcional)
+        setTimeout(() => {
+          const installContainer = document.getElementById('installContainer');
+          if (!deferredPrompt && installContainer) {
+            installContainer.innerHTML = `
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin: 15px 0;">
+                <p style="margin: 0; font-size: 14px; color: #495057; text-align: center;">
+                  <strong>💡 Dica:</strong> Para melhor experiência, use o menu<br>
+                  <strong>"Adicionar à tela inicial"</strong> no navegador do seu celular.
+                </p>
+              </div>
+            `;
+            installContainer.style.display = 'block';
+          }
+        }, 5000);
+      }
+    }, 1000);
+
+    // ========== SUPABASE CONFIGURAÇÃO ==========
+    function inicializarSupabase() {
+      try {
+        if (typeof SUPABASE_CONFIG === 'undefined') {
+          console.warn('⚠️ Configuração Supabase não encontrada. Verifique supabase-config.js');
+          return null;
+        }
+        
+        supabase = window.supabase.createClient(
+          SUPABASE_CONFIG.url,
+          SUPABASE_CONFIG.anonKey
+        );
+        console.log('✅ Supabase inicializado com sucesso');
+        return supabase;
+      } catch (error) {
+        console.error('❌ Erro ao inicializar Supabase:', error);
+        return null;
+      }
+    }
+
+    // ========== FUNÇÕES AUXILIARES ==========
+    function formatarDataParaSupabase(dataBR) {
+      if (!dataBR) return new Date().toISOString().split('T')[0];
+      
+      if (typeof dataBR === 'string' && dataBR.includes('/')) {
+        // Formato: DD/MM/YYYY → YYYY-MM-DD
+        const [dia, mes, ano] = dataBR.split('/');
+        return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+      }
+      
+      return dataBR;
+    }
+
+    function mostrarErro(campoId, mensagem) {
+      const campo = document.getElementById(campoId);
+      const erroDiv = document.getElementById(campoId + 'Error');
+      
+      if (campo) campo.classList.add('km-invalido');
+      if (erroDiv) {
+        erroDiv.textContent = mensagem;
+        erroDiv.style.display = 'block';
+      }
+    }
+
+    function limparErro(campoId) {
+      const campo = document.getElementById(campoId);
+      const erroDiv = document.getElementById(campoId + 'Error');
+      
+      if (campo) campo.classList.remove('km-invalido', 'km-alerta', 'km-valido');
+      if (erroDiv) erroDiv.style.display = 'none';
+    }
+
+    function mostrarStatusConexao(mensagem) {
+      let statusDiv = document.getElementById('status-conexao');
+      if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'status-conexao';
+        statusDiv.className = 'status-conexao';
+        document.body.appendChild(statusDiv);
+      }
+      statusDiv.textContent = mensagem;
+    }
+
+    // ---------- CARREGAR COLABORADORES DO SUPABASE ----------
+    async function carregarColaboradores() {
+      if (!supabase) {
+        console.warn('⚠️ Supabase não inicializado, tentando inicializar...');
+        supabase = inicializarSupabase();
+        
+        if (!supabase) {
+          console.error('❌ Não foi possível inicializar Supabase');
+          usarListaFallback();
+          return;
+        }
+      }
+      
+      const selectColaborador = document.getElementById("colaborador");
+      const loadingDiv = document.getElementById("loadingColaboradores");
+      
+      if (!selectColaborador) {
+        console.error("❌ Elemento 'colaborador' não encontrado");
+        return;
+      }
+      
+      try {
+        selectColaborador.style.display = 'none';
+        if (loadingDiv) loadingDiv.style.display = 'block';
+        
+        console.log('🔍 Buscando colaboradores no Supabase...');
+        
+        const { data: colaboradores, error } = await supabase
+          .from('colaboradores')
+          .select('id, nome_completo, funcao, setor')
+          .eq('status', 'ativo')
+          .order('nome_completo');
+        
+        if (error) throw error;
+        
+        selectColaborador.innerHTML = '<option value="">Selecione um colaborador</option>';
+        
+        if (colaboradores && colaboradores.length > 0) {
+          colaboradores.forEach(colab => {
+            const option = document.createElement("option");
+            option.value = colab.nome_completo;
+            option.textContent = `${colab.nome_completo} - ${colab.funcao}`;
+            option.setAttribute('data-id', colab.id);
+            option.setAttribute('data-funcao', colab.funcao);
+            option.setAttribute('data-setor', colab.setor);
+            selectColaborador.appendChild(option);
+          });
+          
+          console.log(`✅ ${colaboradores.length} colaboradores carregados do Supabase`);
+          mostrarStatusConexao('✅ Conectado ao sistema');
+        } else {
+          console.warn('⚠️ Nenhum colaborador ativo encontrado no Supabase');
+          selectColaborador.innerHTML = '<option value="">Nenhum colaborador disponível</option>';
+          mostrarStatusConexao('⚠️ Nenhum colaborador encontrado');
+        }
+        
+      } catch (error) {
+        console.error('❌ Erro ao carregar colaboradores:', error);
+        usarListaFallback();
+        mostrarStatusConexao('⚠️ Modo offline');
+      } finally {
+        selectColaborador.style.display = 'block';
+        if (loadingDiv) loadingDiv.style.display = 'none';
+      }
+    }
+
+    function usarListaFallback() {
+      const selectColaborador = document.getElementById("colaborador");
+      const loadingDiv = document.getElementById("loadingColaboradores");
+      
+      if (!selectColaborador) return;
+      
+      const listaFallback = [
+        'Henrique da Silva Barbosa',
+        'Hugo Nascimento dos Santos',
+        'Jhulio Cezar de Alencar Araujo',
+        'João Paulo Maciel Santo',
+        'João Vitor Rodrigues do Nascimento',
+        'Kaio Cezar Jesus Melo Araujo',
+        'Luiz Felipe Aguiar de Castro',
+        'Marcos Vinicius Lima da Silva',
+        'Mauricio Martins da Cunha',
+        'Victor Kayan Pereira da Silva',
+        'William Matos de Sousa'
+      ];
+      
+      selectColaborador.innerHTML = '<option value="">Selecione (modo offline)</option>';
+      listaFallback.forEach(nome => {
+        const option = document.createElement("option");
+        option.value = nome;
+        option.textContent = nome;
+        selectColaborador.appendChild(option);
+      });
+      
+      selectColaborador.style.display = 'block';
+      if (loadingDiv) loadingDiv.style.display = 'none';
+      
+      console.warn('⚠️ Usando lista de fallback (modo offline)');
+    }
+
+    // ---------- FUNÇÕES DO SISTEMA ----------
+    async function carregarVeiculos() {
+      const tipo = document.getElementById("tipoVeiculo").value;
+      const selectVeiculo = document.getElementById("veiculo");
+      
+      selectVeiculo.innerHTML = '<option value="">Carregando...</option>';
+      
+      if (supabase) {
+        try {
+          const { data: veiculosSupabase, error } = await supabase
+            .from('veiculos')
+            .select('id, nome, placa, tipo_veiculo, marca, modelo')
+            .eq('tipo_veiculo', tipo)
+            .eq('status', 'ativo')
+            .order('nome');
+          
+          if (error) throw error;
+          
+          selectVeiculo.innerHTML = '<option value="">Selecione</option>';
+          
+          if (veiculosSupabase && veiculosSupabase.length > 0) {
+            veiculosSupabase.forEach(v => {
+              const opt = document.createElement("option");
+              opt.value = v.id;
+              opt.textContent = v.nome;
+              opt.setAttribute('data-veiculo', JSON.stringify(v));
+              selectVeiculo.appendChild(opt);
+            });
+            
+            console.log('✅ Veículos carregados do Supabase:', veiculosSupabase.length);
+          } else {
+            selectVeiculo.innerHTML = '<option value="">Nenhum veículo encontrado</option>';
+          }
+          
+        } catch (error) {
+          console.error('❌ Erro ao carregar veículos do Supabase:', error);
+          selectVeiculo.innerHTML = '<option value="">Erro ao carregar</option>';
+          carregarVeiculosLocal();
+        }
+      } else {
+        carregarVeiculosLocal();
+      }
+    }
+
+    function carregarVeiculosLocal() {
+      const tipo = document.getElementById("tipoVeiculo").value;
+      const selectVeiculo = document.getElementById("veiculo");
+      selectVeiculo.innerHTML = '<option value="">Selecione</option>';
+      
+      veiculos[tipo]?.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.id;
+        opt.textContent = v.nome;
+        opt.setAttribute('data-veiculo', JSON.stringify(v));
+        selectVeiculo.appendChild(opt);
+      });
+    }
+
+    function atualizarPlaca() {
+      const veiculoSelect = document.getElementById("veiculo");
+      const selectedOption = veiculoSelect.options[veiculoSelect.selectedIndex];
+      
+      if (selectedOption.value) {
+        try {
+          veiculoSelecionado = JSON.parse(selectedOption.getAttribute('data-veiculo'));
+          const placaInput = document.getElementById("placa");
+          placaInput.value = veiculoSelecionado.placa;
+          console.log('✅ Veículo selecionado:', veiculoSelecionado);
+        } catch (error) {
+          console.error('❌ Erro ao processar veículo:', error);
+          veiculoSelecionado = null;
+          document.getElementById("placa").value = "";
+        }
+      } else {
+        veiculoSelecionado = null;
+        document.getElementById("placa").value = "";
+      }
+    }
+
+    function continuarRota() {
+      const tipo = document.getElementById("rotaTipo").value;
+      if (!tipo) {
+        alert("Selecione o tipo de rota para continuar.");
+        return;
+      }
+      
+      if (!supabase) {
+        supabase = inicializarSupabase();
+        if (!supabase) {
+          console.warn('Supabase não inicializado - usando modo offline');
+        }
+      }
+      
+      atualizarDataHora();
+      
+      document.getElementById("step-selection").style.display = "none";
+      document.getElementById("formulario").style.display = "block";
+      
+      setTimeout(async () => {
+        await carregarColaboradores();
+      }, 100);
+      
+      setTimeout(function() {
+        inicializarAssinatura();
+      }, 100);
+    }
+
+    function voltarInicio() {
+      document.getElementById("formulario").reset();
+      document.getElementById("formulario").style.display = "none";
+      document.getElementById("step-selection").style.display = "block";
+      limparAssinatura();
+      fotoPainelDataURL = null;
+      document.getElementById('fotoPreview').style.display = 'none';
+      veiculoSelecionado = null;
+      limparErro('km');
+    }
+
+    function limparFormulario() {
+      if (confirm("Deseja limpar todos os campos?")) {
+        document.getElementById("formulario").reset();
+        atualizarDataHora();
+        limparAssinatura();
+        fotoPainelDataURL = null;
+        document.getElementById('fotoPreview').style.display = 'none';
+        veiculoSelecionado = null;
+        limparErro('km');
+      }
+    }
+
+    // ---------- PREVIEW DA FOTO ----------
+    function previewFoto(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          fotoPainelDataURL = e.target.result;
+          const preview = document.getElementById('fotoPreview');
+          preview.src = fotoPainelDataURL;
+          preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // ---------- ASSINATURA DIGITAL ----------
+    function inicializarAssinatura() {
+      signaturePad = document.getElementById("signature-pad");
+      if (!signaturePad) {
+        console.error("Canvas da assinatura não encontrado!");
+        return;
+      }
+      
+      ctx = signaturePad.getContext("2d");
+      
+      signaturePad.width = signaturePad.offsetWidth;
+      signaturePad.height = signaturePad.offsetHeight;
+      
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      signaturePad.replaceWith(signaturePad.cloneNode(true));
+      signaturePad = document.getElementById("signature-pad");
+      ctx = signaturePad.getContext("2d");
+      
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      signaturePad.addEventListener('mousedown', iniciarDesenho);
+      signaturePad.addEventListener('mousemove', desenhar);
+      signaturePad.addEventListener('mouseup', pararDesenho);
+      signaturePad.addEventListener('mouseleave', pararDesenho);
+      
+      signaturePad.addEventListener('touchstart', iniciarDesenho);
+      signaturePad.addEventListener('touchmove', desenhar);
+      signaturePad.addEventListener('touchend', pararDesenho);
+    }
+
+    function getCoordenadasCanvas(e) {
+      const rect = signaturePad.getBoundingClientRect();
+      let clientX, clientY;
+      
+      if (e.type.includes('touch')) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function iniciarDesenho(e) {
+      e.preventDefault();
+      desenhando = true;
+      const coords = getCoordenadasCanvas(e);
+      ctx.beginPath();
+      ctx.moveTo(coords.x, coords.y);
+    }
+
+    function desenhar(e) {
+      e.preventDefault();
+      if (!desenhando) return;
+      
+      const coords = getCoordenadasCanvas(e);
+      ctx.lineTo(coords.x, coords.y);
+      ctx.stroke();
+    }
+
+    function pararDesenho() {
+      desenhando = false;
+    }
+
+    function limparAssinatura() {
+      if (ctx) {
+        ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
+      }
+    }
+
+    // ---------- AUTO DATA / HORA ----------
+    function atualizarDataHora() {
+      const agora = new Date();
+      document.getElementById("dataAtual").value = agora.toLocaleDateString("pt-BR");
+      document.getElementById("horaAtual").value = agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false });
+    }
+
+    atualizarDataHora();
+    setInterval(atualizarDataHora, 60000);
+
+    // ---------- ATUALIZAR NOME DA ASSINATURA ----------
+    document.getElementById("colaborador").addEventListener("change", function(e) {
+      const nomeCompleto = e.target.value;
+      const optionSelecionada = e.target.options[e.target.selectedIndex];
+      const funcao = optionSelecionada.getAttribute('data-funcao') || '';
+      
+      const textoExibicao = funcao ? `${nomeCompleto} - ${funcao}` : nomeCompleto;
+      document.getElementById("nomeAssinatura").textContent = textoExibicao;
+    });
+
+    // ========== FUNÇÃO CORRIGIDA PARA BUSCAR ÚLTIMO KM ==========
+    async function buscarUltimoKM(placaVeiculo) {
+      try {
+        if (supabase) {
+          console.log('🔍 Buscando último KM no Supabase para placa:', placaVeiculo);
+          
+          const { data, error } = await supabase
+            .from('checklists')
+            .select('km')
+            .eq('placa', placaVeiculo)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          if (error) throw error;
+          
+          if (data && data.length > 0) {
+            console.log('✅ Último KM encontrado no Supabase:', data[0].km);
+            return data[0].km;
+          }
+        }
+        
+        console.log('📭 Nenhum registro anterior encontrado para esta placa');
+        return null;
+        
+      } catch (error) {
+        console.error('❌ Erro ao buscar último KM:', error);
+        return null;
+      }
+    }
+
+    // ========== FUNÇÃO PARA COMPRIMIR IMAGEM ==========
+    function comprimirImagem(base64, maxWidth = 800, qualidade = 0.6) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          const compressedBase64 = canvas.toDataURL('image/jpeg', qualidade);
+          resolve(compressedBase64);
+        };
+        img.src = base64;
+      });
+    }
+
+    // ========== FUNÇÃO CORRIGIDA PARA SALVAR NO SUPABASE ==========
+    async function salvarChecklist(dados) {
+      if (supabase) {
+        try {
+          console.log('💾 Salvando no Supabase:', dados);
+          
+          // 🔥 COMPRIMIR IMAGEM SE NECESSÁRIO
+          let fotoComprimida = dados.foto_painel_base64;
+          if (fotoComprimida && fotoComprimida.length > 500000) {
+            fotoComprimida = await comprimirImagem(fotoComprimida);
+            console.log('📷 Imagem comprimida:', Math.round(fotoComprimida.length / 1024), 'KB');
+          }
+          
+          // 🔥 CONVERTER DATA PARA FORMATO SUPABASE (YYYY-MM-DD)
+          const dataFormatada = formatarDataParaSupabase(dados.data);
+          
+          // 🔥 PREPARAR DADOS COM VEÍCULO_ID CORRETO
+          const dadosSupabase = {
+            tipo_rota: dados.tipo_rota,
+            data: dataFormatada, // 🔥 AGORA NO FORMATO CORRETO YYYY-MM-DD
+            hora: dados.hora,
+            colaborador: dados.colaborador,
+            tipo_veiculo: dados.tipo_veiculo,
+            veiculo: dados.veiculo,
+            veiculo_id: dados.veiculo_id,
+            placa: dados.placa,
+            km: dados.km,
+            foto_painel_base64: fotoComprimida,
+            assinatura_base64: dados.assinatura_base64,
+            created_at: new Date().toISOString()
+          };
+          
+          console.log('📤 Dados formatados para Supabase:', dadosSupabase);
+          
+          const { data, error } = await supabase
+            .from('checklists')
+            .insert([dadosSupabase])
+            .select();
+          
+          if (error) {
+            console.error('❌ Erro detalhado do Supabase:', error);
+            throw error;
+          }
+          
+          console.log('✅ Documento salvo no Supabase com ID:', data[0].id);
+          return data[0].id;
+          
+        } catch (error) {
+          console.error('❌ Erro ao salvar no Supabase:', error);
+          throw error;
+        }
+      } else {
+        throw new Error('Supabase não inicializado');
+      }
+    }
+
+    // CONVERTER ARQUIVO PARA BASE64
+    function converterParaBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // 🔥 FUNÇÃO AUXILIAR: VERIFICAR SE A ASSINATURA ESTÁ EM BRANCO
+    function signaturePadBlank() {
+      if (!ctx) return true;
+      
+      const imageData = ctx.getImageData(0, 0, signaturePad.width, signaturePad.height).data;
+      for (let i = 0; i < imageData.length; i += 4) {
+        if (imageData[i + 3] !== 0) return false;
+      }
+      return true;
+    }
+
+    // ========== VALIDAÇÃO DE KM EM TEMPO REAL ==========
+    document.getElementById('km').addEventListener('blur', async function() {
+      await validarKMEmTempoReal();
+    });
+
+    document.getElementById('placa').addEventListener('change', async function() {
+      await validarKMEmTempoReal();
+    });
+
+    async function validarKMEmTempoReal() {
+      const placa = document.getElementById('placa').value;
+      const kmInput = document.getElementById('km');
+      const kmDigitado = parseInt(kmInput.value);
+      
+      if (!placa || !kmDigitado || isNaN(kmDigitado)) {
+        kmInput.classList.remove('km-valido', 'km-alerta', 'km-invalido');
+        limparErro('km');
+        return;
+      }
+      
+      console.log(`🔄 Validando KM: ${kmDigitado} para placa: ${placa}`);
+      
+      const ultimoKM = await buscarUltimoKM(placa);
+      
+      if (ultimoKM !== null) {
+        if (kmDigitado < ultimoKM) {
+          kmInput.classList.remove('km-valido', 'km-alerta');
+          kmInput.classList.add('km-invalido');
+          mostrarErro('km', `ATENÇÃO: KM menor que o último registro (${ultimoKM} km)`);
+        } else if (kmDigitado > ultimoKM + 1000) {
+          kmInput.classList.remove('km-valido', 'km-invalido');
+          kmInput.classList.add('km-alerta');
+          kmInput.title = `ATENÇÃO: KM muito acima do último registro (${ultimoKM} km)`;
+        } else {
+          kmInput.classList.remove('km-alerta', 'km-invalido');
+          kmInput.classList.add('km-valido');
+          kmInput.title = `OK: KM válido (último: ${ultimoKM} km)`;
+          limparErro('km');
+        }
+      } else {
+        kmInput.classList.remove('km-valido', 'km-alerta', 'km-invalido');
+        kmInput.title = 'Primeiro registro para este veículo';
+        limparErro('km');
+      }
+    }
+
+    // 🔥 FUNÇÃO ATUALIZADA: GERAR PDF + SALVAR NO BANCO DE DADOS
+    async function gerarESalvarPDF() {
+      const campos = document.querySelectorAll("#formulario [required]");
+      for (const campo of campos) {
+        if (!campo.value) {
+          alert("Preencha todos os campos obrigatórios antes de gerar o PDF!");
+          return;
+        }
+      }
+      
+      if (!fotoPainelDataURL) {
+        alert("Por favor, capture a foto do painel antes de gerar o PDF!");
+        return;
+      }
+      
+      if (!veiculoSelecionado) {
+        alert("Por favor, selecione um veículo válido!");
+        return;
+      }
+      
+      const rotaTipoSelect = document.getElementById('rotaTipo');
+      const rotaTipoValue = rotaTipoSelect.value;
+      const rotaTipoText = rotaTipoSelect.options[rotaTipoSelect.selectedIndex].text;
+      
+      console.log('🔍 VALIDAÇÃO DO TIPO DE ROTA:');
+      console.log('  - Valor do select:', rotaTipoValue);
+      console.log('  - Texto do select:', rotaTipoText);
+      
+      let tipoRotaParaSalvar = 'INÍCIO';
+      
+      if (rotaTipoValue === 'inicio' || rotaTipoText.includes('Início')) {
+        tipoRotaParaSalvar = 'INÍCIO';
+        console.log('✅ Definido como: INÍCIO');
+      } else if (rotaTipoValue === 'final' || rotaTipoText.includes('Final')) {
+        tipoRotaParaSalvar = 'FINAL';
+        console.log('✅ Definido como: FINAL');
+      } else {
+        console.warn('⚠️ Tipo não reconhecido, usando INÍCIO como padrão');
+      }
+      
+      if (!confirm(`Confirma que esta é uma rota de: ${rotaTipoText}?\n\nSalvará como: ${tipoRotaParaSalvar}`)) {
+        alert('Por favor, verifique o tipo de rota selecionado.');
+        return;
+      }
+      
+      const placa = document.getElementById('placa').value;
+      const kmAtual = parseInt(document.getElementById('km').value);
+
+      if (placa && !isNaN(kmAtual)) {
+        const ultimoKM = await buscarUltimoKM(placa);
+        
+        if (ultimoKM !== null) {
+          if (kmAtual < ultimoKM) {
+            const mensagem = `❌ ATENÇÃO: Quilometragem inválida!\n\n` +
+                            `Último KM registrado: ${ultimoKM} km\n` +
+                            `KM informado: ${kmAtual} km\n` +
+                            `Diferença: -${ultimoKM - kmAtual} km\n\n` +
+                            `A quilometragem não pode ser menor que a anterior.`;
+            
+            alert(mensagem);
+            document.getElementById('km').focus();
+            mostrarErro('km', 'KM menor que o último registro');
+            return;
+          }
+          
+          const diferenca = kmAtual - ultimoKM;
+          if (diferenca > 1000) {
+            const confirmar = confirm(
+              `⚠️ ATENÇÃO: Quilometragem muito alta!\n\n` +
+              `Último KM: ${ultimoKM} km\n` +
+              `KM atual: ${kmAtual} km\n` +
+              `Diferença: +${diferenca} km\n\n` +
+              `Isso representa ${Math.round((diferenca / ultimoKM) * 100)}% de aumento.\n\n` +
+              `Confirmar mesmo assim?`
+            );
+            
+            if (!confirmar) {
+              document.getElementById('km').focus();
+              return;
+            }
+          }
+          
+          if (kmAtual === ultimoKM) {
+            const confirmar = confirm(
+              `ℹ️ KM igual ao último registro\n\n` +
+              `Último KM: ${ultimoKM} km\n` +
+              `KM atual: ${kmAtual} km\n\n` +
+              `O KM é exatamente igual ao último registro.\n` +
+              `Deseja continuar?`
+            );
+            
+            if (!confirmar) {
+              document.getElementById('km').focus();
+              return;
+            }
+          }
+          
+          console.log(`✅ KM validado: ${kmAtual} (último: ${ultimoKM}, diferença: +${kmAtual - ultimoKM} km)`);
+          
+        } else {
+          alert(`✅ Primeiro registro para este veículo!\n\n` +
+                `Placa: ${placa}\n` +
+                `KM inicial: ${kmAtual} km`);
+        }
+      } else {
+        alert("Por favor, preencha a placa e quilometragem corretamente.");
+        return;
+      }
+        
+      atualizarDataHora();
+      
+      document.getElementById('loadingPDF').style.display = 'block';
+      
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        const data = document.getElementById('dataAtual').value;
+        const hora = document.getElementById('horaAtual').value;
+        const colaborador = document.getElementById('colaborador').value;
+        const tipoVeiculo = document.getElementById('tipoVeiculo').value;
+        const veiculoNome = document.getElementById('veiculo').options[document.getElementById('veiculo').selectedIndex].text;
+        const placa = document.getElementById('placa').value;
+        const km = document.getElementById('km').value;
+        
+        const margin = 20;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const contentWidth = pageWidth - (margin * 2);
+        let yPos = margin;
+        
+        const logoUrl = 'https://i.imgur.com/SEr4lkm.png';
+        
+        doc.addImage(logoUrl, 'PNG', pageWidth / 2 - 30, yPos, 60, 22);
+        yPos += 30;
+        
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('Controle de Uso de Veículos', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 15;
+        
+        doc.setFontSize(10);
+        
+        function adicionarCampo(rotulo, valor, y) {
+          doc.setFont(undefined, 'bold');
+          doc.text(rotulo, margin, y);
+          
+          doc.setFont(undefined, 'normal');
+          doc.text(valor.toString(), margin, y + 5);
+          
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.3);
+          doc.line(margin, y + 8, pageWidth - margin, y + 8);
+          
+          return y + 12;
+        }
+        
+        yPos = adicionarCampo('Data:', data, yPos);
+        yPos = adicionarCampo('Hora:', hora, yPos);
+        yPos = adicionarCampo('Colaborador:', colaborador, yPos);
+        yPos = adicionarCampo('Tipo de Veículo:', tipoVeiculo.charAt(0).toUpperCase() + tipoVeiculo.slice(1), yPos);
+        yPos = adicionarCampo('Veículo:', veiculoNome, yPos);
+        yPos = adicionarCampo('Placa:', placa, yPos);
+        yPos = adicionarCampo('Quilometragem:', km + ' km', yPos);
+        yPos = adicionarCampo('Tipo de Rota:', tipoRotaParaSalvar, yPos);
+        
+        yPos += 3;
+        
+        doc.setFont(undefined, 'bold');
+        doc.text('Foto do Painel (KM):', margin, yPos);
+        yPos += 6;
+        
+        const imgWidth = 40;
+        const imgHeight = 40;
+        
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        doc.rect(margin, yPos, imgWidth, imgHeight);
+        
+        const imgProps = doc.getImageProperties(fotoPainelDataURL);
+        const finalImgWidth = imgWidth - 4;
+        const finalImgHeight = imgHeight - 4;
+        
+        doc.addImage(fotoPainelDataURL, 'JPEG', margin + 2, yPos + 2, finalImgWidth, finalImgHeight);
+        
+        yPos += imgHeight + 10;
+        
+        doc.setFont(undefined, 'bold');
+        doc.text('Assinatura Digital:', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 6;
+        
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        const signatureHeight = 25;
+        doc.rect(margin, yPos, contentWidth, signatureHeight);
+        
+        const signatureDataURL = signaturePad.toDataURL();
+        if (signatureDataURL && !signaturePadBlank()) {
+          try {
+            const signatureProps = doc.getImageProperties(signatureDataURL);
+            const signatureWidth = contentWidth - 10;
+            const calcSignatureHeight = (signatureProps.height * signatureWidth) / signatureProps.width;
+            
+            const finalSignatureHeight = Math.min(calcSignatureHeight, signatureHeight - 4);
+            
+            doc.addImage(signatureDataURL, 'PNG', margin + 3, yPos + 3, signatureWidth - 6, finalSignatureHeight);
+          } catch (e) {
+            console.log('Erro ao adicionar assinatura:', e);
+          }
+        }
+        
+        yPos += signatureHeight + 8;
+        
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(9);
+        doc.text(colaborador, pageWidth / 2, yPos, { align: 'center' });
+        
+        const fileName = `Checklist_${veiculoNome.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}_${tipoRotaParaSalvar}.pdf`;
+        
+        const fotoFile = document.getElementById('fotoPainel').files[0];
+        const fotoBase64 = await converterParaBase64(fotoFile);
+        
+        let assinaturaBase64 = null;
+        if (signatureDataURL && !signaturePadBlank()) {
+          assinaturaBase64 = signatureDataURL;
+        }
+        
+        const dadosChecklist = {
+          tipo_rota: tipoRotaParaSalvar,
+          data: data,
+          hora: hora,
+          colaborador: colaborador,
+          tipo_veiculo: tipoVeiculo,
+          veiculo: veiculoNome,
+          veiculo_id: veiculoSelecionado.id,
+          placa: placa,
+          km: parseInt(km),
+          foto_painel_base64: fotoBase64,
+          assinatura_base64: assinaturaBase64
+        };
+        
+        console.log('📤 Dados para salvar:', dadosChecklist);
+        
+        const resultado = await salvarChecklist(dadosChecklist);
+        
+        if (resultado) {
+          doc.save(fileName);
+          alert(`✅ PDF gerado e todos os dados salvos no sistema!\n\nTipo de Rota: ${tipoRotaParaSalvar}`);
+        } else {
+          alert('❌ Erro ao salvar no banco de dados. O PDF foi gerado, mas os dados não foram salvos.');
+        }
+        
+      } catch (error) {
+        console.error('Erro ao gerar PDF:', error);
+        alert('Erro ao gerar PDF. Tente novamente.');
+      } finally {
+        document.getElementById('loadingPDF').style.display = 'none';
+      }
+    }
+
+    // Inicializar quando a página carrega
+    window.addEventListener('load', async function() {
+      supabase = inicializarSupabase();
+      
+      console.log('✅ Aplicação carregada.');
+      console.log('   - Supabase:', supabase ? 'OK' : 'Erro');
+      
+      if (supabase) {
+        try {
+          console.log('🔍 Testando conexão com Supabase...');
+          
+          const { data, error } = await supabase
+            .from('colaboradores')
+            .select('count', { count: 'exact', head: true })
+            .eq('status', 'ativo');
+          
+          if (error) {
+            console.error('❌ Erro na conexão com Supabase:', error.message);
+            mostrarStatusConexao('❌ Erro ao conectar com o banco de dados');
+          } else {
+            console.log('✅ Conexão com Supabase estabelecida');
+            mostrarStatusConexao('✅ Conectado ao sistema');
+          }
+        } catch (error) {
+          console.error('❌ Erro ao testar conexão:', error);
+          mostrarStatusConexao('⚠️ Modo offline ativado');
+        }
+      }
+    });
+  </script>
+</body>
+</html>
   <!-- 🔥 SUPABASE -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
@@ -1132,3 +2481,4 @@
   </script>
 </body>
 </html>
+
