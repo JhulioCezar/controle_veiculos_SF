@@ -448,9 +448,12 @@
                 <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                     <h3 style="margin-top: 0; color: #2b6cb0; margin-bottom: 15px;">⚙️ Administração</h3>
                     <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        <button class="btn-primary" onclick="gerenciarColaboradores()" title="Gerenciar colaboradores">
-                            👥 Gerenciar Colaboradores
-                        </button>
+    <button class="btn-primary" onclick="gerenciarColaboradores()" title="Gerenciar colaboradores">
+        👥 Gerenciar Colaboradores
+    </button>
+    <button class="btn-primary" onclick="gerenciarVeiculos()" title="Gerenciar veículos da frota" style="background: #059669;">
+        🚗 Gerenciar Veículos
+    </button>
                         <button class="btn-danger" onclick="iniciarModoProducao()" title="Configurar sistema para produção">
                             🚀 Modo Produção
                         </button>
@@ -667,7 +670,7 @@
 
     <script>
         // ========== VARIÁVEIS GLOBAIS ==========
-        let supabase = null;
+        let supabaseClient = null;
         let checklistsData = [];
         let graficos = {};
         let filtrosSalvos = JSON.parse(localStorage.getItem('filtros_salvos') || '{}');
@@ -721,7 +724,7 @@
                 }
                 
                 // Criar cliente Supabase
-                supabase = window.supabase.createClient(
+                supabaseClient = window.supabase.createClient(
                     SUPABASE_CONFIG.url,
                     SUPABASE_CONFIG.anonKey
                 );
@@ -731,7 +734,7 @@
                     setTimeout(() => reject(new Error('Timeout: conexão muito lenta')), 10000)
                 );
                 
-                const connectPromise = supabase
+                const connectPromise = supabaseClient
                     .from('checklists')
                     .select('id')
                     .limit(1);
@@ -852,7 +855,7 @@ async function gerenciarColaboradores() {
             
             try {
                 // 🔥 BUSCAR TODOS OS COLABORADORES (ATIVOS E INATIVOS)
-                const { data: colaboradores, error } = await supabase
+                const { data: colaboradores, error } = await supabaseClient
                     .from('colaboradores')
                     .select('*')
                     .order('nome_completo');
@@ -1117,7 +1120,7 @@ async function gerenciarColaboradores() {
                 
                 console.log('💾 Salvando novo colaborador:', dados);
                 
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('colaboradores')
                     .insert([dados])
                     .select();
@@ -1141,7 +1144,7 @@ async function gerenciarColaboradores() {
                 console.log('✏️ Editando colaborador ID:', id);
                 
                 // 🔥 BUSCAR DADOS DO COLABORADOR
-                const { data: colaborador, error } = await supabase
+                const { data: colaborador, error } = await supabaseClient
                     .from('colaboradores')
                     .select('*')
                     .eq('id', id)
@@ -1257,7 +1260,7 @@ async function gerenciarColaboradores() {
                 
                 console.log('✏️ Atualizando colaborador:', dados);
                 
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('colaboradores')
                     .update(dados)
                     .eq('id', id);
@@ -1284,7 +1287,7 @@ async function gerenciarColaboradores() {
             }
             
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('colaboradores')
                     .update({ 
                         status: 'inativo',
@@ -1313,7 +1316,7 @@ async function gerenciarColaboradores() {
             console.log('🔄 Ativando colaborador:', { id, nome });
             
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('colaboradores')
                     .update({ 
                         status: 'ativo',
@@ -1346,7 +1349,7 @@ async function gerenciarColaboradores() {
             }
             
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('colaboradores')
                     .delete()
                     .eq('id', id);
@@ -1367,6 +1370,15 @@ async function gerenciarColaboradores() {
                 mostrarNotificacao('❌ Erro ao excluir colaborador.', 'error');
             }
         }
+
+// ========== FUNÇÃO PARA GERENCIAR VEÍCULOS ==========
+function gerenciarVeiculos() {
+    // Abre em nova janela/tab - SISTEMA INDEPENDENTE
+    window.open('veiculos.html', '_blank', 
+        'width=1300,height=800,scrollbars=yes,resizable=yes');
+    
+    mostrarNotificacao('🚗 Abrindo sistema de gerenciamento de veículos...', 'info');
+}
         
         // ========== FUNÇÕES DE RELATÓRIO CORRIGIDAS ==========
         function gerarRelatorio() {
@@ -1385,7 +1397,7 @@ async function gerenciarColaboradores() {
                 // Formatar data para o formato do banco
                 const hojeFormatado = formatarDataParaFiltro(hoje);
                 
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('checklists')
                     .select('*')
                     .eq('data', hojeFormatado)
@@ -1422,7 +1434,7 @@ async function gerenciarColaboradores() {
                 console.log('📆 Buscando relatório semanal de:', umaSemanaAtras.toLocaleDateString('pt-BR'), 'até', hoje.toLocaleDateString('pt-BR'));
                 
                 // Usar created_at para filtro temporal
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('checklists')
                     .select('*')
                     .gte('created_at', umaSemanaAtras.toISOString())
@@ -1459,7 +1471,7 @@ async function gerenciarColaboradores() {
                 
                 console.log('📈 Buscando relatório mensal do mês:', hoje.getMonth() + 1);
                 
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('checklists')
                     .select('*')
                     .gte('created_at', primeiroDiaMes.toISOString())
@@ -1492,7 +1504,7 @@ async function gerenciarColaboradores() {
         async function gerarRelatorioPorVeiculo() {
             try {
                 // Primeiro, pegar todos os veículos disponíveis
-                const { data: veiculos, error: errorVeiculos } = await supabase
+                const { data: veiculos, error: errorVeiculos } = await supabaseClient
                     .from('checklists')
                     .select('placa, veiculo')
                     .not('placa', 'is', null)
@@ -1536,7 +1548,7 @@ async function gerenciarColaboradores() {
                 console.log(`🚗 Buscando relatório para veículo: ${veiculoNome} (${placaSelecionada})`);
                 
                 // Buscar registros do veículo
-                const { data: registros, error } = await supabase
+                const { data: registros, error } = await supabaseClient
                     .from('checklists')
                     .select('*')
                     .eq('placa', placaSelecionada)
@@ -1567,7 +1579,7 @@ async function gerenciarColaboradores() {
         async function gerarRelatorioPorColaborador() {
             try {
                 // Primeiro, pegar todos os colaboradores disponíveis
-                const { data: colaboradores, error: errorColabs } = await supabase
+                const { data: colaboradores, error: errorColabs } = await supabaseClient
                     .from('checklists')
                     .select('colaborador')
                     .not('colaborador', 'is', null)
@@ -1603,7 +1615,7 @@ async function gerenciarColaboradores() {
                 console.log(`👥 Buscando relatório para colaborador: ${colaboradorSelecionado}`);
                 
                 // Buscar registros do colaborador
-                const { data: registros, error } = await supabase
+                const { data: registros, error } = await supabaseClient
                     .from('checklists')
                     .select('*')
                     .eq('colaborador', colaboradorSelecionado)
@@ -1633,7 +1645,7 @@ async function gerenciarColaboradores() {
         
         async function gerarRelatorioCompleto() {
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('checklists')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -1966,7 +1978,7 @@ async function gerenciarColaboradores() {
         async function iniciarModoProducao() {
             try {
                 // Buscar dados atuais para análise
-                const { data: checklists, error } = await supabase
+                const { data: checklists, error } = await supabaseClient
                     .from('checklists')
                     .select('*');
                 
@@ -2082,7 +2094,7 @@ async function gerenciarColaboradores() {
             }
             
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('checklists')
                     .delete()
                     .or('placa.ilike.%TESTE%,colaborador.ilike.%TESTE%');
@@ -2104,7 +2116,7 @@ async function gerenciarColaboradores() {
         async function limparDadosTeste() {
             try {
                 // Buscar dados de teste
-                const { data: dadosTeste, error } = await supabase
+                const { data: dadosTeste, error } = await supabaseClient
                     .from('checklists')
                     .select('*')
                     .or('placa.ilike.%TESTE%,colaborador.ilike.%TESTE%,observacoes.ilike.%TESTE%');
@@ -2443,7 +2455,7 @@ async function gerenciarColaboradores() {
         // ========== FUNÇÕES PRINCIPAIS DO DASHBOARD ==========
         // ========== FUNÇÃO PARA CARREGAR CHECKLISTS ==========
         async function carregarChecklists() {
-            if (!supabase) {
+            if (!supabaseClient) {
                 mostrarNotificacao('❌ Supabase não inicializado.', 'error');
                 return;
             }
@@ -2462,7 +2474,7 @@ async function gerenciarColaboradores() {
                 console.log('📥 Carregando checklists do Supabase...');
                 
                 // Buscar dados do Supabase
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('checklists')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -2558,7 +2570,7 @@ async function gerenciarColaboradores() {
         async function verDetalhes(id) {
             try {
                 // Buscar detalhes do registro
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('checklists')
                     .select('*')
                     .eq('id', id)
@@ -2684,7 +2696,7 @@ async function gerenciarColaboradores() {
             }
             
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('checklists')
                     .delete()
                     .eq('id', id);
@@ -2897,7 +2909,7 @@ async function gerenciarColaboradores() {
 
         // ========== FUNÇÕES EXISTENTES (mantidas) ==========
         async function carregarEstatisticas() {
-            if (!supabase) {
+            if (!supabaseClient) {
                 console.warn('⚠️ Supabase não inicializado');
                 return;
             }
@@ -2905,7 +2917,7 @@ async function gerenciarColaboradores() {
             try {
                 console.log('📊 Carregando estatísticas...');
                 
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('checklists')
                     .select('*');
                 
