@@ -490,7 +490,6 @@
         };
         
         // VARIÁVEIS GLOBAIS
-        let supabase = null;
         let colaboradores = [];
         
         // FUNÇÕES DE FORMATAÇÃO E VALIDAÇÃO
@@ -721,13 +720,23 @@
             try {
                 console.log('🔌 Conectando ao Supabase...');
                 
-                supabase = window.supabase.createClient(
-                    SUPABASE_CONFIG.url,
-                    SUPABASE_CONFIG.anonKey
-                );
+                // Verificar se a biblioteca Supabase foi carregada
+                if (typeof supabase === 'undefined') {
+                    console.error('❌ Biblioteca Supabase não foi carregada');
+                    mostrarNotificacao('❌ Biblioteca Supabase não carregada', 'error');
+                    return false;
+                }
+                
+                // Criar cliente Supabase uma única vez
+                if (!window.supabaseClient) {
+                    window.supabaseClient = supabase.createClient(
+                        SUPABASE_CONFIG.url,
+                        SUPABASE_CONFIG.anonKey
+                    );
+                }
                 
                 // Testar conexão
-                const { data, error } = await supabase
+                const { data, error } = await window.supabaseClient
                     .from('colaboradores')
                     .select('id')
                     .limit(1);
@@ -764,7 +773,7 @@
             try {
                 console.log('📥 Carregando colaboradores...');
                 
-                const { data, error } = await supabase
+                const { data, error } = await window.supabaseClient
                     .from('colaboradores')
                     .select('*')
                     .order('nome_completo');
@@ -904,7 +913,7 @@
             try {
                 console.log('✏️ Editando colaborador:', id);
                 
-                const { data, error } = await supabase
+                const { data, error } = await window.supabaseClient
                     .from('colaboradores')
                     .select('*')
                     .eq('id', id)
@@ -1013,7 +1022,7 @@
                 
                 if (id) {
                     // ATUALIZAR
-                    resultado = await supabase
+                    resultado = await window.supabaseClient
                         .from('colaboradores')
                         .update(dados)
                         .eq('id', id);
@@ -1022,7 +1031,7 @@
                     dados.data_criacao = new Date().toISOString();
                     dados.created_by = 'sistema_colaboradores';
                     
-                    resultado = await supabase
+                    resultado = await window.supabaseClient
                         .from('colaboradores')
                         .insert([dados]);
                 }
@@ -1060,7 +1069,7 @@
                 
                 console.log(`🔄 Alterando status do colaborador ${id} para ${novoStatus}`);
                 
-                const { error } = await supabase
+                const { error } = await window.supabaseClient
                     .from('colaboradores')
                     .update({ 
                         status: novoStatus,
@@ -1097,7 +1106,7 @@
                     return;
                 }
                 
-                const { error } = await supabase
+                const { error } = await window.supabaseClient
                     .from('colaboradores')
                     .delete()
                     .eq('id', id);
