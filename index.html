@@ -12,9 +12,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-  <!-- 🔥 SUPABASE -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js"></script>
+  <!-- 🔥 SUPABASE - ADICIONADO defer PARA CARREGAR CORRETAMENTE -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2" defer></script>
 
   <style>
     body {
@@ -204,6 +203,31 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    
+    .notificacao-sincronizacao {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #28a745;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      animation: slideDown 0.5s ease-out;
+      display: none;
+    }
+    
+    .notificacao-offline {
+      background: #ffc107;
+      color: #333;
+    }
+    
+    .notificacao-erro {
+      background: #dc3545;
+      color: white;
+    }
   </style>
 </head>
 
@@ -230,6 +254,9 @@
       </p>
     </div>
 
+    <!-- 🔥 NOTIFICAÇÕES -->
+    <div id="notificacaoSincronizacao" class="notificacao-sincronizacao" style="display: none;"></div>
+
     <!-- SELEÇÃO DE ROTA -->
     <div id="step-selection">
       <label for="rotaTipo">Selecione o Tipo de Rota:</label>
@@ -238,7 +265,7 @@
         <option value="inicio">Início de Rota</option>
         <option value="final">Final de Rota</option>
       </select>
-      <button onclick="continuarRota()">Continuar</button>
+      <button id="continuarBtn">Continuar</button>
     </div>
 
     <!-- FORMULÁRIO -->
@@ -290,7 +317,7 @@
       <!-- 🔥 LOADING DO PDF -->
       <div id="loadingPDF" class="loading-pdf">
         <div style="width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #2b6cb0; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
-        <p style="margin-top: 10px;">Gerando PDF, aguarde...</p>
+        <p style="margin-top: 10px;">Gerando PDF e sincronizando com banco de dados...</p>
       </div>
 
       <button type="button" class="btn-secondary" onclick="voltarInicio()">Voltar</button>
@@ -299,13 +326,19 @@
     </form>
   </div>
 
+  <div id="status-conexao" class="status-conexao">Carregando sistema...</div>
+
   <script>
-    // ---------- PWA ----------
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js")
-        .then(() => console.log("Service Worker registrado!"))
-        .catch(err => console.log("Erro ao registrar o Service Worker:", err));
-    }
+    // 🔥 DECLARAÇÕES GLOBAIS NO TOPO
+    window.fotoPainelDataURL = null;
+    window.signaturePad = null;
+    window.ctx = null;
+    window.desenhando = false;
+    window.supabase = null;
+    window.veiculoSelecionado = null;
+    window.deferredPrompt = null;
+    window.supabaseCarregado = false;
+    window.isOnline = navigator.onLine;
 
     // ---------- DADOS ----------
     const veiculos = {
@@ -316,194 +349,161 @@
       moto: []
     };
 
-    // ---------- VARIÁVEIS GLOBAIS ----------
-    let fotoPainelDataURL = null;
-    let signaturePad, ctx, desenhando = false;
-    let supabase = null;
-    let veiculoSelecionado = null;
-    let deferredPrompt = null; // 🔥 PARA INSTALAÇÃO PWA
-
-    // 🔥 CONFIGURAÇÃO SUPABASE INLINE
-    const SUPABASE_CONFIG = {
-      url: 'https://lrfhudpojewxwknqekdg.supabase.co',
-      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyZmh1ZHBvamV3eHdrbnFla2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyOTEyNTMsImV4cCI6MjA4MDg2NzI1M30.JmfyUpUO2-qhMsZv17j6YACLfACYG3PneLoLqwtGR4s'
-    };
-
-    // ========== PWA INSTALL PROMPT ==========
-    // 🔥 1. CAPTURAR O EVENTO DE INSTALAÇÃO
-    window.addEventListener('beforeinstallprompt', (e) => {
-      console.log('✅ beforeinstallprompt disparado');
+    // ========== FUNÇÃO DE NOTIFICAÇÃO ==========
+    function mostrarNotificacao(mensagem, tipo = 'sucesso') {
+      const notificacao = document.getElementById('notificacaoSincronizacao');
+      notificacao.textContent = mensagem;
+      notificacao.className = 'notificacao-sincronizacao';
       
-      // Previne que o prompt apareça automaticamente
-      e.preventDefault();
-      
-      // Armazena o evento para usar depois
-      deferredPrompt = e;
-      
-      // Mostra o botão de instalação
-      const installContainer = document.getElementById('installContainer');
-      if (installContainer) {
-        installContainer.style.display = 'block';
+      if (tipo === 'offline') {
+        notificacao.classList.add('notificacao-offline');
+      } else if (tipo === 'erro') {
+        notificacao.classList.add('notificacao-erro');
       }
       
-      // 🔥 VERIFICAR SE JÁ ESTÁ INSTALADO
-      verificarSeAppInstalado();
-    });
-
-    // 🔥 2. BOTÃO DE INSTALAÇÃO
-    const installButton = document.getElementById('installButton');
-    if (installButton) {
-      installButton.addEventListener('click', async () => {
-        if (!deferredPrompt) {
-          alert('O app já está instalado ou não suporta instalação.');
-          return;
-        }
-        
-        // Mostra o prompt de instalação
-        deferredPrompt.prompt();
-        
-        // Espera pelo resultado
-        const { outcome } = await deferredPrompt.userChoice;
-        
-        console.log(`Usuário ${outcome === 'accepted' ? 'aceitou' : 'recusou'} a instalação`);
-        
-        // Limpa o evento
-        deferredPrompt = null;
-        
-        // Esconde o botão
-        const installContainer = document.getElementById('installContainer');
-        if (installContainer) {
-          installContainer.style.display = 'none';
-        }
-      });
-    }
-
-    // 🔥 3. VERIFICAR SE O APP JÁ ESTÁ INSTALADO
-    function verificarSeAppInstalado() {
-      // Verifica se está em modo standalone (app instalado)
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-                         window.navigator.standalone ||
-                         document.referrer.includes('android-app://');
-      
-      if (isStandalone) {
-        console.log('📱 App já está instalado');
-        const installContainer = document.getElementById('installContainer');
-        if (installContainer) {
-          installContainer.style.display = 'none';
-        }
-        return true;
-      }
-      return false;
-    }
-
-    // 🔥 4. DETECTAR APÓS INSTALAÇÃO
-    window.addEventListener('appinstalled', (evt) => {
-      console.log('🎉 App instalado com sucesso!');
-      
-      // Esconde o botão
-      const installContainer = document.getElementById('installContainer');
-      if (installContainer) {
-        installContainer.style.display = 'none';
-      }
-      
-      // Mostra mensagem de sucesso
-      mostrarNotificacaoInstalacao();
-      
-      // Atualiza o status
-      deferredPrompt = null;
-    });
-
-    // 🔥 5. NOTIFICAÇÃO DE SUCESSO
-    function mostrarNotificacaoInstalacao() {
-      const notification = document.createElement('div');
-      notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #28a745;
-        color: white;
-        padding: 15px 20px;
-        border-radius: 8px;
-        z-index: 10000;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        animation: slideDown 0.5s ease-out;
-      `;
-      
-      notification.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 24px;">✅</span>
-          <div>
-            <strong>App instalado com sucesso!</strong><br>
-            <small>Agora você pode acessar offline</small>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(notification);
+      notificacao.style.display = 'block';
       
       setTimeout(() => {
-        notification.style.animation = 'slideUp 0.5s ease-out';
-        setTimeout(() => notification.remove(), 500);
-      }, 3000);
+        notificacao.style.animation = 'slideUp 0.5s ease-out';
+        setTimeout(() => {
+          notificacao.style.display = 'none';
+          notificacao.style.animation = '';
+        }, 500);
+      }, 4000);
     }
 
-    // 🔥 6. VERIFICAR AO CARREGAR A PÁGINA
-    setTimeout(() => {
-      if (!verificarSeAppInstalado() && !deferredPrompt) {
-        console.log('ℹ️ Prompt de instalação não disponível ainda');
-        
-        // 🔥 MOSTRAR MENSAGEM EDUCATIVA APÓS 5 SEGUNDOS (opcional)
-        setTimeout(() => {
-          const installContainer = document.getElementById('installContainer');
-          if (!deferredPrompt && installContainer) {
-            installContainer.innerHTML = `
-              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin: 15px 0;">
-                <p style="margin: 0; font-size: 14px; color: #495057; text-align: center;">
-                  <strong>💡 Dica:</strong> Para melhor experiência, use o menu<br>
-                  <strong>"Adicionar à tela inicial"</strong> no navegador do seu celular.
-                </p>
-              </div>
-            `;
-            installContainer.style.display = 'block';
-          }
-        }, 5000);
-      }
-    }, 1000);
-
-    // ========== SUPABASE CONFIGURAÇÃO ==========
-    function inicializarSupabase() {
+    // ========== SUPABASE CONFIGURAÇÃO SIMPLIFICADA ==========
+    window.inicializarSupabase = async function() {
       try {
-        if (typeof SUPABASE_CONFIG === 'undefined') {
-          console.warn('⚠️ Configuração Supabase não encontrada. Verifique supabase-config.js');
+        console.log('🔄 Inicializando Supabase...');
+        
+        // Verificar se a biblioteca está carregada
+        if (typeof supabase === 'undefined') {
+          console.warn('⚠️ Biblioteca Supabase não carregada');
+          window.supabaseCarregado = false;
+          mostrarStatusConexao('⚠️ Modo offline');
           return null;
         }
         
-        supabase = window.supabase.createClient(
-          SUPABASE_CONFIG.url,
-          SUPABASE_CONFIG.anonKey
+        // Criar cliente
+        window.supabase = supabase.createClient(
+          'https://lrfhudpojewxwknqekdg.supabase.co',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyZmh1ZHBvamV3eHdrbnFla2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyOTEyNTMsImV4cCI6MjA4MDg2NzI1M30.JmfyUpUO2-qhMsZv17j6YACLfACYG3PneLoLqwtGR4s'
         );
-        console.log('✅ Supabase inicializado com sucesso');
-        return supabase;
+        
+        // Testar conexão (com timeout)
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout na conexão')), 5000)
+        );
+        
+        const conexaoPromise = window.supabase
+          .from('colaboradores')
+          .select('count', { count: 'exact', head: true })
+          .limit(1);
+        
+        try {
+          const { data, error } = await Promise.race([conexaoPromise, timeoutPromise]);
+          
+          if (error) {
+            console.warn('⚠️ Erro na conexão:', error.message);
+            window.supabaseCarregado = false;
+            mostrarStatusConexao('⚠️ Modo offline');
+          } else {
+            console.log('✅ Supabase conectado com sucesso!');
+            window.supabaseCarregado = true;
+            mostrarStatusConexao('✅ Conectado ao banco');
+            
+            // Sincronizar dados offline se houver
+            sincronizarDadosOffline();
+          }
+        } catch (timeoutError) {
+          console.warn('⚠️ Timeout na conexão com Supabase');
+          window.supabaseCarregado = false;
+          mostrarStatusConexao('⚠️ Modo offline');
+        }
+        
+        return window.supabase;
+        
       } catch (error) {
         console.error('❌ Erro ao inicializar Supabase:', error);
+        window.supabaseCarregado = false;
+        mostrarStatusConexao('⚠️ Modo offline');
         return null;
       }
-    }
+    };
 
-    // ========== FUNÇÕES AUXILIARES ==========
-    function formatarDataParaSupabase(dataBR) {
-      if (!dataBR) return new Date().toISOString().split('T')[0];
+    // ========== FUNÇÕES PRINCIPAIS ==========
+    
+    // 🔥 FUNÇÃO PRINCIPAL: CONTINUAR ROTA
+    window.continuarRota = function() {
+      const tipo = document.getElementById("rotaTipo").value;
       
-      if (typeof dataBR === 'string' && dataBR.includes('/')) {
-        // Formato: DD/MM/YYYY → YYYY-MM-DD
-        const [dia, mes, ano] = dataBR.split('/');
-        return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+      if (!tipo || tipo === "") {
+        alert("Por favor, selecione o tipo de rota (Início ou Final) para continuar.");
+        document.getElementById("rotaTipo").focus();
+        document.getElementById("rotaTipo").style.borderColor = "#dc3545";
+        return;
       }
       
-      return dataBR;
-    }
+      document.getElementById("rotaTipo").style.borderColor = "";
+      
+      console.log(`✅ Tipo de rota selecionado: ${tipo}`);
+      
+      atualizarDataHora();
+      
+      document.getElementById("step-selection").style.display = "none";
+      document.getElementById("formulario").style.display = "block";
+      
+      setTimeout(async () => {
+        try {
+          await carregarColaboradores();
+        } catch (error) {
+          console.error("❌ Erro ao carregar colaboradores:", error);
+        }
+      }, 100);
+      
+      setTimeout(function() {
+        try {
+          inicializarAssinatura();
+        } catch (error) {
+          console.error("❌ Erro ao inicializar assinatura:", error);
+        }
+      }, 200);
+    };
 
+    // 🔥 VOLTAR INÍCIO
+    window.voltarInicio = function() {
+      document.getElementById("formulario").reset();
+      document.getElementById("formulario").style.display = "none";
+      document.getElementById("step-selection").style.display = "block";
+      limparAssinatura();
+      window.fotoPainelDataURL = null;
+      document.getElementById('fotoPreview').style.display = 'none';
+      window.veiculoSelecionado = null;
+      limparErro('km');
+    };
+
+    // 🔥 LIMPAR FORMULÁRIO
+    window.limparFormulario = function() {
+      if (confirm("Deseja limpar todos os campos?")) {
+        document.getElementById("formulario").reset();
+        atualizarDataHora();
+        limparAssinatura();
+        window.fotoPainelDataURL = null;
+        document.getElementById('fotoPreview').style.display = 'none';
+        window.veiculoSelecionado = null;
+        limparErro('km');
+      }
+    };
+
+    // 🔥 LIMPAR ASSINATURA
+    window.limparAssinatura = function() {
+      if (window.ctx) {
+        window.ctx.clearRect(0, 0, window.signaturePad.width, window.signaturePad.height);
+      }
+    };
+
+    // ========== FUNÇÕES AUXILIARES ==========
     function mostrarErro(campoId, mensagem) {
       const campo = document.getElementById(campoId);
       const erroDiv = document.getElementById(campoId + 'Error');
@@ -524,29 +524,29 @@
     }
 
     function mostrarStatusConexao(mensagem) {
-      let statusDiv = document.getElementById('status-conexao');
-      if (!statusDiv) {
-        statusDiv = document.createElement('div');
-        statusDiv.id = 'status-conexao';
-        statusDiv.className = 'status-conexao';
-        document.body.appendChild(statusDiv);
-      }
-      statusDiv.textContent = mensagem;
-    }
-
-    // ---------- CARREGAR COLABORADORES DO SUPABASE ----------
-    async function carregarColaboradores() {
-      if (!supabase) {
-        console.warn('⚠️ Supabase não inicializado, tentando inicializar...');
-        supabase = inicializarSupabase();
+      const statusDiv = document.getElementById('status-conexao');
+      if (statusDiv) {
+        statusDiv.textContent = mensagem;
         
-        if (!supabase) {
-          console.error('❌ Não foi possível inicializar Supabase');
-          usarListaFallback();
-          return;
+        // Atualizar cor baseada no status
+        if (mensagem.includes('Conectado')) {
+          statusDiv.style.background = '#d4edda';
+          statusDiv.style.color = '#155724';
+          statusDiv.style.borderColor = '#c3e6cb';
+        } else if (mensagem.includes('offline')) {
+          statusDiv.style.background = '#fff3cd';
+          statusDiv.style.color = '#856404';
+          statusDiv.style.borderColor = '#ffeaa7';
+        } else {
+          statusDiv.style.background = '#f8f9fa';
+          statusDiv.style.color = '#666';
+          statusDiv.style.borderColor = '#dee2e6';
         }
       }
-      
+    }
+
+    // ---------- CARREGAR COLABORADORES ----------
+    async function carregarColaboradores() {
       const selectColaborador = document.getElementById("colaborador");
       const loadingDiv = document.getElementById("loadingColaboradores");
       
@@ -559,44 +559,46 @@
         selectColaborador.style.display = 'none';
         if (loadingDiv) loadingDiv.style.display = 'block';
         
-        console.log('🔍 Buscando colaboradores no Supabase...');
+        console.log('🔍 Buscando colaboradores do Supabase...');
         
-        const { data: colaboradores, error } = await supabase
-          .from('colaboradores')
-          .select('id, nome_completo, funcao, setor')
-          .eq('status', 'ativo')
-          .order('nome_completo');
-        
-        if (error) throw error;
-        
-        selectColaborador.innerHTML = '<option value="">Selecione um colaborador</option>';
-        
-        if (colaboradores && colaboradores.length > 0) {
-          colaboradores.forEach(colab => {
-            const option = document.createElement("option");
-            option.value = colab.nome_completo;
-            option.textContent = `${colab.nome_completo} - ${colab.funcao}`;
-            option.setAttribute('data-id', colab.id);
-            option.setAttribute('data-funcao', colab.funcao);
-            option.setAttribute('data-setor', colab.setor);
-            selectColaborador.appendChild(option);
-          });
-          
-          console.log(`✅ ${colaboradores.length} colaboradores carregados do Supabase`);
-          mostrarStatusConexao('✅ Conectado ao sistema');
-        } else {
-          console.warn('⚠️ Nenhum colaborador ativo encontrado no Supabase');
-          selectColaborador.innerHTML = '<option value="">Nenhum colaborador disponível</option>';
-          mostrarStatusConexao('⚠️ Nenhum colaborador encontrado');
+        // Tentar carregar do Supabase
+        if (window.supabaseCarregado && window.supabase) {
+          try {
+            const { data: colaboradores, error } = await window.supabase
+              .from('colaboradores')
+              .select('*')
+              .order('nome');
+            
+            if (!error && colaboradores && colaboradores.length > 0) {
+              console.log(`✅ ${colaboradores.length} colaboradores carregados do Supabase`);
+              
+              selectColaborador.innerHTML = '<option value="">Selecione um colaborador</option>';
+              colaboradores.forEach(colab => {
+                const option = document.createElement("option");
+                option.value = colab.nome;
+                option.textContent = colab.nome;
+                if (colab.funcao) {
+                  option.setAttribute('data-funcao', colab.funcao);
+                }
+                selectColaborador.appendChild(option);
+              });
+              
+              selectColaborador.style.display = 'block';
+              if (loadingDiv) loadingDiv.style.display = 'none';
+              return;
+            }
+          } catch (supabaseError) {
+            console.warn('⚠️ Erro ao carregar do Supabase:', supabaseError);
+          }
         }
+        
+        // Fallback para lista local
+        console.log('📭 Usando lista local');
+        usarListaFallback();
         
       } catch (error) {
         console.error('❌ Erro ao carregar colaboradores:', error);
         usarListaFallback();
-        mostrarStatusConexao('⚠️ Modo offline');
-      } finally {
-        selectColaborador.style.display = 'block';
-        if (loadingDiv) loadingDiv.style.display = 'none';
       }
     }
 
@@ -620,7 +622,7 @@
         'William Matos de Sousa'
       ];
       
-      selectColaborador.innerHTML = '<option value="">Selecione (modo offline)</option>';
+      selectColaborador.innerHTML = '<option value="">Selecione um colaborador</option>';
       listaFallback.forEach(nome => {
         const option = document.createElement("option");
         option.value = nome;
@@ -631,56 +633,14 @@
       selectColaborador.style.display = 'block';
       if (loadingDiv) loadingDiv.style.display = 'none';
       
-      console.warn('⚠️ Usando lista de fallback (modo offline)');
+      console.log('✅ Lista de colaboradores carregada localmente');
     }
 
     // ---------- FUNÇÕES DO SISTEMA ----------
-    async function carregarVeiculos() {
+    window.carregarVeiculos = function() {
       const tipo = document.getElementById("tipoVeiculo").value;
       const selectVeiculo = document.getElementById("veiculo");
       
-      selectVeiculo.innerHTML = '<option value="">Carregando...</option>';
-      
-      if (supabase) {
-        try {
-          const { data: veiculosSupabase, error } = await supabase
-            .from('veiculos')
-            .select('id, nome, placa, tipo_veiculo, marca, modelo')
-            .eq('tipo_veiculo', tipo)
-            .eq('status', 'ativo')
-            .order('nome');
-          
-          if (error) throw error;
-          
-          selectVeiculo.innerHTML = '<option value="">Selecione</option>';
-          
-          if (veiculosSupabase && veiculosSupabase.length > 0) {
-            veiculosSupabase.forEach(v => {
-              const opt = document.createElement("option");
-              opt.value = v.id;
-              opt.textContent = v.nome;
-              opt.setAttribute('data-veiculo', JSON.stringify(v));
-              selectVeiculo.appendChild(opt);
-            });
-            
-            console.log('✅ Veículos carregados do Supabase:', veiculosSupabase.length);
-          } else {
-            selectVeiculo.innerHTML = '<option value="">Nenhum veículo encontrado</option>';
-          }
-          
-        } catch (error) {
-          console.error('❌ Erro ao carregar veículos do Supabase:', error);
-          selectVeiculo.innerHTML = '<option value="">Erro ao carregar</option>';
-          carregarVeiculosLocal();
-        }
-      } else {
-        carregarVeiculosLocal();
-      }
-    }
-
-    function carregarVeiculosLocal() {
-      const tipo = document.getElementById("tipoVeiculo").value;
-      const selectVeiculo = document.getElementById("veiculo");
       selectVeiculo.innerHTML = '<option value="">Selecione</option>';
       
       veiculos[tipo]?.forEach(v => {
@@ -690,134 +650,87 @@
         opt.setAttribute('data-veiculo', JSON.stringify(v));
         selectVeiculo.appendChild(opt);
       });
-    }
+      
+      if (veiculos[tipo] && veiculos[tipo].length === 0) {
+        selectVeiculo.innerHTML = '<option value="">Nenhum veículo encontrado</option>';
+      }
+    };
 
-    function atualizarPlaca() {
+    window.atualizarPlaca = function() {
       const veiculoSelect = document.getElementById("veiculo");
       const selectedOption = veiculoSelect.options[veiculoSelect.selectedIndex];
       
       if (selectedOption.value) {
         try {
-          veiculoSelecionado = JSON.parse(selectedOption.getAttribute('data-veiculo'));
+          window.veiculoSelecionado = JSON.parse(selectedOption.getAttribute('data-veiculo'));
           const placaInput = document.getElementById("placa");
-          placaInput.value = veiculoSelecionado.placa;
-          console.log('✅ Veículo selecionado:', veiculoSelecionado);
+          placaInput.value = window.veiculoSelecionado.placa;
+          console.log('✅ Veículo selecionado:', window.veiculoSelecionado);
         } catch (error) {
           console.error('❌ Erro ao processar veículo:', error);
-          veiculoSelecionado = null;
+          window.veiculoSelecionado = null;
           document.getElementById("placa").value = "";
         }
       } else {
-        veiculoSelecionado = null;
+        window.veiculoSelecionado = null;
         document.getElementById("placa").value = "";
       }
-    }
-
-    function continuarRota() {
-      const tipo = document.getElementById("rotaTipo").value;
-      if (!tipo) {
-        alert("Selecione o tipo de rota para continuar.");
-        return;
-      }
-      
-      if (!supabase) {
-        supabase = inicializarSupabase();
-        if (!supabase) {
-          console.warn('Supabase não inicializado - usando modo offline');
-        }
-      }
-      
-      atualizarDataHora();
-      
-      document.getElementById("step-selection").style.display = "none";
-      document.getElementById("formulario").style.display = "block";
-      
-      setTimeout(async () => {
-        await carregarColaboradores();
-      }, 100);
-      
-      setTimeout(function() {
-        inicializarAssinatura();
-      }, 100);
-    }
-
-    function voltarInicio() {
-      document.getElementById("formulario").reset();
-      document.getElementById("formulario").style.display = "none";
-      document.getElementById("step-selection").style.display = "block";
-      limparAssinatura();
-      fotoPainelDataURL = null;
-      document.getElementById('fotoPreview').style.display = 'none';
-      veiculoSelecionado = null;
-      limparErro('km');
-    }
-
-    function limparFormulario() {
-      if (confirm("Deseja limpar todos os campos?")) {
-        document.getElementById("formulario").reset();
-        atualizarDataHora();
-        limparAssinatura();
-        fotoPainelDataURL = null;
-        document.getElementById('fotoPreview').style.display = 'none';
-        veiculoSelecionado = null;
-        limparErro('km');
-      }
-    }
+    };
 
     // ---------- PREVIEW DA FOTO ----------
-    function previewFoto(event) {
+    window.previewFoto = function(event) {
       const file = event.target.files[0];
       if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-          fotoPainelDataURL = e.target.result;
+          window.fotoPainelDataURL = e.target.result;
           const preview = document.getElementById('fotoPreview');
-          preview.src = fotoPainelDataURL;
+          preview.src = window.fotoPainelDataURL;
           preview.style.display = 'block';
         };
         reader.readAsDataURL(file);
       }
-    }
+    };
 
     // ---------- ASSINATURA DIGITAL ----------
     function inicializarAssinatura() {
-      signaturePad = document.getElementById("signature-pad");
-      if (!signaturePad) {
+      window.signaturePad = document.getElementById("signature-pad");
+      if (!window.signaturePad) {
         console.error("Canvas da assinatura não encontrado!");
         return;
       }
       
-      ctx = signaturePad.getContext("2d");
+      window.ctx = window.signaturePad.getContext("2d");
       
-      signaturePad.width = signaturePad.offsetWidth;
-      signaturePad.height = signaturePad.offsetHeight;
+      window.signaturePad.width = window.signaturePad.offsetWidth;
+      window.signaturePad.height = window.signaturePad.offsetHeight;
       
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      window.ctx.strokeStyle = '#000000';
+      window.ctx.lineWidth = 2;
+      window.ctx.lineCap = 'round';
+      window.ctx.lineJoin = 'round';
       
-      signaturePad.replaceWith(signaturePad.cloneNode(true));
-      signaturePad = document.getElementById("signature-pad");
-      ctx = signaturePad.getContext("2d");
+      window.signaturePad.replaceWith(window.signaturePad.cloneNode(true));
+      window.signaturePad = document.getElementById("signature-pad");
+      window.ctx = window.signaturePad.getContext("2d");
       
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      window.ctx.strokeStyle = '#000000';
+      window.ctx.lineWidth = 2;
+      window.ctx.lineCap = 'round';
+      window.ctx.lineJoin = 'round';
       
-      signaturePad.addEventListener('mousedown', iniciarDesenho);
-      signaturePad.addEventListener('mousemove', desenhar);
-      signaturePad.addEventListener('mouseup', pararDesenho);
-      signaturePad.addEventListener('mouseleave', pararDesenho);
+      window.signaturePad.addEventListener('mousedown', iniciarDesenho);
+      window.signaturePad.addEventListener('mousemove', desenhar);
+      window.signaturePad.addEventListener('mouseup', pararDesenho);
+      window.signaturePad.addEventListener('mouseleave', pararDesenho);
       
-      signaturePad.addEventListener('touchstart', iniciarDesenho);
-      signaturePad.addEventListener('touchmove', desenhar);
-      signaturePad.addEventListener('touchend', pararDesenho);
+      window.signaturePad.addEventListener('touchstart', iniciarDesenho);
+      window.signaturePad.addEventListener('touchmove', desenhar);
+      window.signaturePad.addEventListener('touchend', pararDesenho);
     }
 
     function getCoordenadasCanvas(e) {
-      const rect = signaturePad.getBoundingClientRect();
+      const rect = window.signaturePad.getBoundingClientRect();
       let clientX, clientY;
       
       if (e.type.includes('touch')) {
@@ -836,36 +749,46 @@
 
     function iniciarDesenho(e) {
       e.preventDefault();
-      desenhando = true;
+      window.desenhando = true;
       const coords = getCoordenadasCanvas(e);
-      ctx.beginPath();
-      ctx.moveTo(coords.x, coords.y);
+      window.ctx.beginPath();
+      window.ctx.moveTo(coords.x, coords.y);
     }
 
     function desenhar(e) {
       e.preventDefault();
-      if (!desenhando) return;
+      if (!window.desenhando) return;
       
       const coords = getCoordenadasCanvas(e);
-      ctx.lineTo(coords.x, coords.y);
-      ctx.stroke();
+      window.ctx.lineTo(coords.x, coords.y);
+      window.ctx.stroke();
     }
 
     function pararDesenho() {
-      desenhando = false;
-    }
-
-    function limparAssinatura() {
-      if (ctx) {
-        ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
-      }
+      window.desenhando = false;
     }
 
     // ---------- AUTO DATA / HORA ----------
     function atualizarDataHora() {
       const agora = new Date();
+      
+      // Formatar data no formato YYYY-MM-DD para o Supabase (tipo date)
+      const dataFormatada = agora.toISOString().split('T')[0];
+      
+      // Formatar hora no formato HH:MM
+      const horaFormatada = agora.toLocaleTimeString("pt-BR", { 
+        hour: "2-digit", 
+        minute: "2-digit", 
+        hour12: false 
+      });
+      
       document.getElementById("dataAtual").value = agora.toLocaleDateString("pt-BR");
-      document.getElementById("horaAtual").value = agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false });
+      document.getElementById("horaAtual").value = horaFormatada;
+      
+      return {
+        dataSupabase: dataFormatada,
+        hora: horaFormatada
+      };
     }
 
     atualizarDataHora();
@@ -881,33 +804,173 @@
       document.getElementById("nomeAssinatura").textContent = textoExibicao;
     });
 
-    // ========== FUNÇÃO CORRIGIDA PARA BUSCAR ÚLTIMO KM ==========
-    async function buscarUltimoKM(placaVeiculo) {
+    // ========== FUNÇÃO PRINCIPAL: SALVAR NO SUPABASE ==========
+    async function salvarChecklist(dados) {
       try {
-        if (supabase) {
-          console.log('🔍 Buscando último KM no Supabase para placa:', placaVeiculo);
+        console.log('💾 Tentando salvar no Supabase...', dados);
+        
+        // Verificar se o Supabase está disponível
+        if (!window.supabase || !window.supabaseCarregado) {
+          console.warn('⚠️ Supabase não disponível, tentando reconectar...');
+          await window.inicializarSupabase();
           
-          const { data, error } = await supabase
-            .from('checklists')
-            .select('km')
-            .eq('placa', placaVeiculo)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          
-          if (error) throw error;
-          
-          if (data && data.length > 0) {
-            console.log('✅ Último KM encontrado no Supabase:', data[0].km);
-            return data[0].km;
+          if (!window.supabase || !window.supabaseCarregado) {
+            throw new Error('Supabase não disponível após tentativa de reconexão');
           }
         }
         
-        console.log('📭 Nenhum registro anterior encontrado para esta placa');
-        return null;
+        // Comprimir imagem se necessário
+        let fotoComprimida = dados.fotoPainel;
+        if (dados.fotoPainel && dados.fotoPainel.length > 100000) { // > 100KB
+          console.log('📸 Comprimindo imagem...');
+          fotoComprimida = await comprimirImagem(dados.fotoPainel, 800, 0.7);
+        }
+        
+        // Preparar os dados para o Supabase - AJUSTADO PARA A ESTRUTURA DA TABELA
+        const dadosParaSalvar = {
+          // ID será gerado automaticamente pelo Supabase
+          veiculo_id: dados.veiculoId, // Precisa mapear corretamente os IDs dos veículos
+          data: dados.dataSupabase, // Formato YYYY-MM-DD
+          km: parseInt(dados.km),
+          colaborador: dados.colaborador,
+          itens: null, // Campo opcional, pode ser preenchido posteriormente
+          observacoes: null, // Campo opcional
+          tipo_rota: dados.tipoRota,
+          hora: dados.hora,
+          tipo_veiculo: dados.tipoVeiculo,
+          veiculo: dados.veiculoNome,
+          placa: dados.placa,
+          foto_painel_base64: fotoComprimida,
+          assinatura_base64: dados.assinatura,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        console.log('📤 Dados preparados para envio:', dadosParaSalvar);
+        
+        // Inserir no banco de dados
+        const { data, error } = await window.supabase
+          .from('checklists')
+          .insert([dadosParaSalvar])
+          .select();
+        
+        if (error) {
+          console.error('❌ Erro ao salvar no Supabase:', error);
+          throw error;
+        }
+        
+        console.log('✅ Dados salvos com sucesso no Supabase:', data);
+        return { success: true, online: true };
         
       } catch (error) {
-        console.error('❌ Erro ao buscar último KM:', error);
-        return null;
+        console.error('❌ Erro na função salvarChecklist:', error);
+        
+        // Tentar salvar offline (em localStorage) como fallback
+        try {
+          const checklistsOffline = JSON.parse(localStorage.getItem('checklists_offline') || '[]');
+          const dadosOffline = {
+            ...dados,
+            tentativa_salvamento: new Date().toISOString(),
+            status: 'pendente'
+          };
+          checklistsOffline.push(dadosOffline);
+          localStorage.setItem('checklists_offline', JSON.stringify(checklistsOffline));
+          console.log('📱 Dados salvos offline para sincronização posterior');
+          
+          return { success: true, online: false };
+        } catch (offlineError) {
+          console.error('❌ Erro ao salvar offline:', offlineError);
+          return { success: false, online: false };
+        }
+      }
+    }
+
+    // ========== SINCRONIZAÇÃO DE DADOS OFFLINE ==========
+    async function sincronizarDadosOffline() {
+      if (!window.supabaseCarregado || !window.supabase) {
+        console.log('⚠️ Supabase não disponível para sincronização');
+        return;
+      }
+      
+      try {
+        const dadosOffline = JSON.parse(localStorage.getItem('checklists_offline') || '[]');
+        
+        if (dadosOffline.length === 0) {
+          console.log('ℹ️ Nenhum dado offline para sincronizar');
+          return;
+        }
+        
+        console.log(`📤 Tentando sincronizar ${dadosOffline.length} registros offline...`);
+        
+        const sucessos = [];
+        const falhas = [];
+        
+        for (let i = 0; i < dadosOffline.length; i++) {
+          const dados = dadosOffline[i];
+          
+          try {
+            // Mapear dados offline para a estrutura correta do banco
+            const dadosParaEnviar = {
+              veiculo_id: dados.veiculoId || null,
+              data: dados.dataSupabase || dados.data?.split('/').reverse().join('-') || new Date().toISOString().split('T')[0],
+              km: parseInt(dados.km) || 0,
+              colaborador: dados.colaborador || '',
+              itens: null,
+              observacoes: null,
+              tipo_rota: dados.tipoRota || '',
+              hora: dados.hora || '',
+              tipo_veiculo: dados.tipoVeiculo || '',
+              veiculo: dados.veiculoNome || dados.veiculo || '',
+              placa: dados.placa || '',
+              foto_painel_base64: dados.fotoPainel || '',
+              assinatura_base64: dados.assinatura || '',
+              created_at: dados.created_at || new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+            
+            // Remover campos undefined
+            Object.keys(dadosParaEnviar).forEach(key => {
+              if (dadosParaEnviar[key] === undefined) {
+                delete dadosParaEnviar[key];
+              }
+            });
+            
+            console.log('📤 Enviando dados offline:', dadosParaEnviar);
+            
+            const { error } = await window.supabase
+              .from('checklists')
+              .insert([dadosParaEnviar]);
+            
+            if (!error) {
+              sucessos.push(dados);
+              dadosOffline.splice(i, 1);
+              i--;
+              console.log(`✅ Registro sincronizado: ${dados.veiculo || dados.veiculoNome} - ${dados.data}`);
+            } else {
+              falhas.push({ dados, error });
+              console.warn(`⚠️ Falha ao sincronizar: ${error.message}`);
+            }
+          } catch (registroError) {
+            falhas.push({ dados, error: registroError });
+            console.error(`❌ Erro no registro: ${registroError.message}`);
+          }
+        }
+        
+        // Atualizar localStorage
+        localStorage.setItem('checklists_offline', JSON.stringify(dadosOffline));
+        
+        if (sucessos.length > 0) {
+          mostrarNotificacao(`✅ ${sucessos.length} registro(s) sincronizado(s) com sucesso!`);
+        }
+        
+        if (falhas.length > 0) {
+          console.warn(`${falhas.length} registros falharam na sincronização`, falhas);
+        }
+        
+        console.log(`✅ Sincronização concluída: ${sucessos.length} sucesso(s), ${falhas.length} falha(s)`);
+        
+      } catch (error) {
+        console.error('❌ Erro na sincronização offline:', error);
       }
     }
 
@@ -938,77 +1001,11 @@
       });
     }
 
-    // ========== FUNÇÃO CORRIGIDA PARA SALVAR NO SUPABASE ==========
-    async function salvarChecklist(dados) {
-      if (supabase) {
-        try {
-          console.log('💾 Salvando no Supabase:', dados);
-          
-          // 🔥 COMPRIMIR IMAGEM SE NECESSÁRIO
-          let fotoComprimida = dados.foto_painel_base64;
-          if (fotoComprimida && fotoComprimida.length > 500000) {
-            fotoComprimida = await comprimirImagem(fotoComprimida);
-            console.log('📷 Imagem comprimida:', Math.round(fotoComprimida.length / 1024), 'KB');
-          }
-          
-          // 🔥 CONVERTER DATA PARA FORMATO SUPABASE (YYYY-MM-DD)
-          const dataFormatada = formatarDataParaSupabase(dados.data);
-          
-          // 🔥 PREPARAR DADOS COM VEÍCULO_ID CORRETO
-          const dadosSupabase = {
-            tipo_rota: dados.tipo_rota,
-            data: dataFormatada, // 🔥 AGORA NO FORMATO CORRETO YYYY-MM-DD
-            hora: dados.hora,
-            colaborador: dados.colaborador,
-            tipo_veiculo: dados.tipo_veiculo,
-            veiculo: dados.veiculo,
-            veiculo_id: dados.veiculo_id,
-            placa: dados.placa,
-            km: dados.km,
-            foto_painel_base64: fotoComprimida,
-            assinatura_base64: dados.assinatura_base64,
-            created_at: new Date().toISOString()
-          };
-          
-          console.log('📤 Dados formatados para Supabase:', dadosSupabase);
-          
-          const { data, error } = await supabase
-            .from('checklists')
-            .insert([dadosSupabase])
-            .select();
-          
-          if (error) {
-            console.error('❌ Erro detalhado do Supabase:', error);
-            throw error;
-          }
-          
-          console.log('✅ Documento salvo no Supabase com ID:', data[0].id);
-          return data[0].id;
-          
-        } catch (error) {
-          console.error('❌ Erro ao salvar no Supabase:', error);
-          throw error;
-        }
-      } else {
-        throw new Error('Supabase não inicializado');
-      }
-    }
-
-    // CONVERTER ARQUIVO PARA BASE64
-    function converterParaBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
     // 🔥 FUNÇÃO AUXILIAR: VERIFICAR SE A ASSINATURA ESTÁ EM BRANCO
     function signaturePadBlank() {
-      if (!ctx) return true;
+      if (!window.ctx) return true;
       
-      const imageData = ctx.getImageData(0, 0, signaturePad.width, signaturePad.height).data;
+      const imageData = window.ctx.getImageData(0, 0, window.signaturePad.width, window.signaturePad.height).data;
       for (let i = 0; i < imageData.length; i += 4) {
         if (imageData[i + 3] !== 0) return false;
       }
@@ -1037,32 +1034,153 @@
       
       console.log(`🔄 Validando KM: ${kmDigitado} para placa: ${placa}`);
       
-      const ultimoKM = await buscarUltimoKM(placa);
-      
-      if (ultimoKM !== null) {
-        if (kmDigitado < ultimoKM) {
-          kmInput.classList.remove('km-valido', 'km-alerta');
-          kmInput.classList.add('km-invalido');
-          mostrarErro('km', `ATENÇÃO: KM menor que o último registro (${ultimoKM} km)`);
-        } else if (kmDigitado > ultimoKM + 1000) {
-          kmInput.classList.remove('km-valido', 'km-invalido');
-          kmInput.classList.add('km-alerta');
-          kmInput.title = `ATENÇÃO: KM muito acima do último registro (${ultimoKM} km)`;
-        } else {
-          kmInput.classList.remove('km-alerta', 'km-invalido');
-          kmInput.classList.add('km-valido');
-          kmInput.title = `OK: KM válido (último: ${ultimoKM} km)`;
+      // 🔥 BUSCAR ÚLTIMO KM DO SUPABASE
+      if (window.supabaseCarregado && window.supabase) {
+        try {
+          const { data, error } = await window.supabase
+            .from('checklists')
+            .select('km')
+            .eq('placa', placa)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          if (!error && data && data.length > 0) {
+            const ultimoKM = data[0].km;
+            
+            if (kmDigitado < ultimoKM) {
+              kmInput.classList.add('km-invalido');
+              mostrarErro('km', `❌ KM menor que o anterior (${ultimoKM} km)`);
+            } else if (kmDigitado === ultimoKM) {
+              kmInput.classList.add('km-alerta');
+              mostrarErro('km', `⚠️ KM igual ao anterior (${ultimoKM} km)`);
+            } else if (kmDigitado > ultimoKM + 1000) {
+              kmInput.classList.add('km-alerta');
+              mostrarErro('km', `⚠️ KM muito acima do anterior (${ultimoKM} km)`);
+            } else {
+              kmInput.classList.add('km-valido');
+              limparErro('km');
+            }
+          } else {
+            kmInput.classList.remove('km-valido', 'km-alerta', 'km-invalido');
+            limparErro('km');
+          }
+        } catch (error) {
+          console.warn('⚠️ Erro ao buscar KM:', error);
+          kmInput.classList.remove('km-valido', 'km-alerta', 'km-invalido');
           limparErro('km');
         }
       } else {
         kmInput.classList.remove('km-valido', 'km-alerta', 'km-invalido');
-        kmInput.title = 'Primeiro registro para este veículo';
         limparErro('km');
       }
     }
 
-    // 🔥 FUNÇÃO ATUALIZADA: GERAR PDF + SALVAR NO BANCO DE DADOS
-    async function gerarESalvarPDF() {
+    // ========== EVENT LISTENERS AO CARREGAR ==========
+    document.addEventListener('DOMContentLoaded', function() {
+      const continuarBtn = document.getElementById('continuarBtn');
+      if (continuarBtn) {
+        continuarBtn.addEventListener('click', window.continuarRota);
+        console.log('✅ Botão "Continuar" configurado com sucesso');
+      }
+      
+      // 🔥 MONITORAR CONEXÃO
+      window.addEventListener('online', function() {
+        window.isOnline = true;
+        mostrarStatusConexao('🌐 Conexão restabelecida');
+        console.log('✅ Conexão restabelecida');
+        
+        // Tentar reconectar ao Supabase
+        setTimeout(async () => {
+          await window.inicializarSupabase();
+          sincronizarDadosOffline();
+        }, 1000);
+      });
+      
+      window.addEventListener('offline', function() {
+        window.isOnline = false;
+        mostrarStatusConexao('⚠️ Sem conexão (modo offline)');
+        console.log('⚠️ Conexão perdida - modo offline');
+      });
+      
+      // 🔥 INICIALIZAR SUPABASE
+      setTimeout(async () => {
+        try {
+          await window.inicializarSupabase();
+        } catch (error) {
+          console.warn('⚠️ Supabase não disponível, continuando em modo local');
+        }
+      }, 1000);
+      
+      console.log('✅ Aplicação carregada');
+      mostrarStatusConexao('✅ Sistema carregado');
+    });
+
+    // ========== PWA INSTALL PROMPT ==========
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('✅ beforeinstallprompt disparado');
+      
+      e.preventDefault();
+      window.deferredPrompt = e;
+      
+      const installContainer = document.getElementById('installContainer');
+      if (installContainer) {
+        installContainer.style.display = 'block';
+      }
+      
+      verificarSeAppInstalado();
+    });
+
+    const installButton = document.getElementById('installButton');
+    if (installButton) {
+      installButton.addEventListener('click', async () => {
+        if (!window.deferredPrompt) {
+          alert('O app já está instalado ou não suporta instalação.');
+          return;
+        }
+        
+        window.deferredPrompt.prompt();
+        const { outcome } = await window.deferredPrompt.userChoice;
+        
+        console.log(`Usuário ${outcome === 'accepted' ? 'aceitou' : 'recusou'} a instalação`);
+        window.deferredPrompt = null;
+        
+        const installContainer = document.getElementById('installContainer');
+        if (installContainer) {
+          installContainer.style.display = 'none';
+        }
+      });
+    }
+
+    function verificarSeAppInstalado() {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         window.navigator.standalone ||
+                         document.referrer.includes('android-app://');
+      
+      if (isStandalone) {
+        console.log('📱 App já está instalado');
+        const installContainer = document.getElementById('installContainer');
+        if (installContainer) {
+          installContainer.style.display = 'none';
+        }
+        return true;
+      }
+      return false;
+    }
+
+    window.addEventListener('appinstalled', (evt) => {
+      console.log('🎉 App instalado com sucesso!');
+      
+      const installContainer = document.getElementById('installContainer');
+      if (installContainer) {
+        installContainer.style.display = 'none';
+      }
+      
+      mostrarNotificacao('✅ App instalado com sucesso! Agora você pode acessar offline', 'sucesso');
+      window.deferredPrompt = null;
+    });
+
+    // ========== FUNÇÃO PRINCIPAL: GERAR PDF E SALVAR NO BANCO ==========
+    window.gerarESalvarPDF = async function() {
       const campos = document.querySelectorAll("#formulario [required]");
       for (const campo of campos) {
         if (!campo.value) {
@@ -1071,12 +1189,12 @@
         }
       }
       
-      if (!fotoPainelDataURL) {
+      if (!window.fotoPainelDataURL) {
         alert("Por favor, capture a foto do painel antes de gerar o PDF!");
         return;
       }
       
-      if (!veiculoSelecionado) {
+      if (!window.veiculoSelecionado) {
         alert("Por favor, selecione um veículo válido!");
         return;
       }
@@ -1085,20 +1203,12 @@
       const rotaTipoValue = rotaTipoSelect.value;
       const rotaTipoText = rotaTipoSelect.options[rotaTipoSelect.selectedIndex].text;
       
-      console.log('🔍 VALIDAÇÃO DO TIPO DE ROTA:');
-      console.log('  - Valor do select:', rotaTipoValue);
-      console.log('  - Texto do select:', rotaTipoText);
-      
       let tipoRotaParaSalvar = 'INÍCIO';
       
       if (rotaTipoValue === 'inicio' || rotaTipoText.includes('Início')) {
         tipoRotaParaSalvar = 'INÍCIO';
-        console.log('✅ Definido como: INÍCIO');
       } else if (rotaTipoValue === 'final' || rotaTipoText.includes('Final')) {
         tipoRotaParaSalvar = 'FINAL';
-        console.log('✅ Definido como: FINAL');
-      } else {
-        console.warn('⚠️ Tipo não reconhecido, usando INÍCIO como padrão');
       }
       
       if (!confirm(`Confirma que esta é uma rota de: ${rotaTipoText}?\n\nSalvará como: ${tipoRotaParaSalvar}`)) {
@@ -1110,80 +1220,58 @@
       const kmAtual = parseInt(document.getElementById('km').value);
 
       if (placa && !isNaN(kmAtual)) {
-        const ultimoKM = await buscarUltimoKM(placa);
-        
-        if (ultimoKM !== null) {
-          if (kmAtual < ultimoKM) {
-            const mensagem = `❌ ATENÇÃO: Quilometragem inválida!\n\n` +
-                            `Último KM registrado: ${ultimoKM} km\n` +
-                            `KM informado: ${kmAtual} km\n` +
-                            `Diferença: -${ultimoKM - kmAtual} km\n\n` +
-                            `A quilometragem não pode ser menor que a anterior.`;
-            
-            alert(mensagem);
-            document.getElementById('km').focus();
-            mostrarErro('km', 'KM menor que o último registro');
-            return;
-          }
-          
-          const diferenca = kmAtual - ultimoKM;
-          if (diferenca > 1000) {
-            const confirmar = confirm(
-              `⚠️ ATENÇÃO: Quilometragem muito alta!\n\n` +
-              `Último KM: ${ultimoKM} km\n` +
-              `KM atual: ${kmAtual} km\n` +
-              `Diferença: +${diferenca} km\n\n` +
-              `Isso representa ${Math.round((diferenca / ultimoKM) * 100)}% de aumento.\n\n` +
-              `Confirmar mesmo assim?`
-            );
-            
-            if (!confirmar) {
-              document.getElementById('km').focus();
-              return;
-            }
-          }
-          
-          if (kmAtual === ultimoKM) {
-            const confirmar = confirm(
-              `ℹ️ KM igual ao último registro\n\n` +
-              `Último KM: ${ultimoKM} km\n` +
-              `KM atual: ${kmAtual} km\n\n` +
-              `O KM é exatamente igual ao último registro.\n` +
-              `Deseja continuar?`
-            );
-            
-            if (!confirmar) {
-              document.getElementById('km').focus();
-              return;
-            }
-          }
-          
-          console.log(`✅ KM validado: ${kmAtual} (último: ${ultimoKM}, diferença: +${kmAtual - ultimoKM} km)`);
-          
-        } else {
-          alert(`✅ Primeiro registro para este veículo!\n\n` +
-                `Placa: ${placa}\n` +
-                `KM inicial: ${kmAtual} km`);
+        if (kmAtual <= 0) {
+          alert("❌ Quilometragem inválida! O KM deve ser maior que zero.");
+          document.getElementById('km').focus();
+          mostrarErro('km', 'KM deve ser maior que zero');
+          return;
         }
+        
+        if (kmAtual > 999999) {
+          alert("❌ Quilometragem muito alta! Verifique o valor digitado.");
+          document.getElementById('km').focus();
+          mostrarErro('km', 'KM muito alto');
+          return;
+        }
+          
       } else {
         alert("Por favor, preencha a placa e quilometragem corretamente.");
         return;
       }
         
-      atualizarDataHora();
+      // Atualizar data e hora, capturando os formatos corretos para o banco
+      const { dataSupabase, hora } = atualizarDataHora();
       
       document.getElementById('loadingPDF').style.display = 'block';
       
       try {
+        // 🔥 1. SALVAR NO BANCO DE DADOS PRIMEIRO
+        const dadosParaSalvar = {
+          dataSupabase: dataSupabase,
+          hora: hora,
+          colaborador: document.getElementById('colaborador').value,
+          tipoVeiculo: document.getElementById('tipoVeiculo').value,
+          veiculoId: window.veiculoSelecionado?.id || null,
+          veiculoNome: document.getElementById('veiculo').options[document.getElementById('veiculo').selectedIndex].text,
+          placa: placa,
+          km: kmAtual,
+          tipoRota: tipoRotaParaSalvar,
+          fotoPainel: window.fotoPainelDataURL,
+          assinatura: window.signaturePad.toDataURL()
+        };
+        
+        console.log('💾 Salvando dados no banco...', dadosParaSalvar);
+        const resultadoSalvamento = await salvarChecklist(dadosParaSalvar);
+        
+        // 🔥 2. GERAR PDF APÓS SALVAR OS DADOS
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
-        const data = document.getElementById('dataAtual').value;
-        const hora = document.getElementById('horaAtual').value;
+        const dataExibicao = document.getElementById('dataAtual').value;
+        const horaExibicao = document.getElementById('horaAtual').value;
         const colaborador = document.getElementById('colaborador').value;
         const tipoVeiculo = document.getElementById('tipoVeiculo').value;
         const veiculoNome = document.getElementById('veiculo').options[document.getElementById('veiculo').selectedIndex].text;
-        const placa = document.getElementById('placa').value;
         const km = document.getElementById('km').value;
         
         const margin = 20;
@@ -1218,8 +1306,8 @@
           return y + 12;
         }
         
-        yPos = adicionarCampo('Data:', data, yPos);
-        yPos = adicionarCampo('Hora:', hora, yPos);
+        yPos = adicionarCampo('Data:', dataExibicao, yPos);
+        yPos = adicionarCampo('Hora:', horaExibicao, yPos);
         yPos = adicionarCampo('Colaborador:', colaborador, yPos);
         yPos = adicionarCampo('Tipo de Veículo:', tipoVeiculo.charAt(0).toUpperCase() + tipoVeiculo.slice(1), yPos);
         yPos = adicionarCampo('Veículo:', veiculoNome, yPos);
@@ -1240,11 +1328,11 @@
         doc.setLineWidth(0.5);
         doc.rect(margin, yPos, imgWidth, imgHeight);
         
-        const imgProps = doc.getImageProperties(fotoPainelDataURL);
+        const imgProps = doc.getImageProperties(window.fotoPainelDataURL);
         const finalImgWidth = imgWidth - 4;
         const finalImgHeight = imgHeight - 4;
         
-        doc.addImage(fotoPainelDataURL, 'JPEG', margin + 2, yPos + 2, finalImgWidth, finalImgHeight);
+        doc.addImage(window.fotoPainelDataURL, 'JPEG', margin + 2, yPos + 2, finalImgWidth, finalImgHeight);
         
         yPos += imgHeight + 10;
         
@@ -1257,7 +1345,7 @@
         const signatureHeight = 25;
         doc.rect(margin, yPos, contentWidth, signatureHeight);
         
-        const signatureDataURL = signaturePad.toDataURL();
+        const signatureDataURL = window.signaturePad.toDataURL();
         if (signatureDataURL && !signaturePadBlank()) {
           try {
             const signatureProps = doc.getImageProperties(signatureDataURL);
@@ -1278,78 +1366,75 @@
         doc.setFontSize(9);
         doc.text(colaborador, pageWidth / 2, yPos, { align: 'center' });
         
-        const fileName = `Checklist_${veiculoNome.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}_${tipoRotaParaSalvar}.pdf`;
+        // 🔥 3. STATUS DO SALVAMENTO NO PDF
+        yPos += 10;
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
         
-        const fotoFile = document.getElementById('fotoPainel').files[0];
-        const fotoBase64 = await converterParaBase64(fotoFile);
-        
-        let assinaturaBase64 = null;
-        if (signatureDataURL && !signaturePadBlank()) {
-          assinaturaBase64 = signatureDataURL;
+        if (resultadoSalvamento.success) {
+          if (resultadoSalvamento.online) {
+            doc.text('✅ Dados sincronizados com o banco de dados', margin, yPos);
+          } else {
+            doc.text('📱 Dados salvos localmente (serão sincronizados quando houver conexão)', margin, yPos);
+          }
+        } else {
+          doc.text('⚠️ Erro ao salvar os dados', margin, yPos);
         }
         
-        const dadosChecklist = {
-          tipo_rota: tipoRotaParaSalvar,
-          data: data,
-          hora: hora,
-          colaborador: colaborador,
-          tipo_veiculo: tipoVeiculo,
-          veiculo: veiculoNome,
-          veiculo_id: veiculoSelecionado.id,
-          placa: placa,
-          km: parseInt(km),
-          foto_painel_base64: fotoBase64,
-          assinatura_base64: assinaturaBase64
-        };
+        const fileName = `Checklist_${veiculoNome.replace(/\s+/g, '_')}_${dataExibicao.replace(/\//g, '-')}_${tipoRotaParaSalvar}.pdf`;
         
-        console.log('📤 Dados para salvar:', dadosChecklist);
+        // 🔥 SALVAR PDF
+        doc.save(fileName);
         
-        const resultado = await salvarChecklist(dadosChecklist);
-        
-        if (resultado) {
-          doc.save(fileName);
-          alert(`✅ PDF gerado e todos os dados salvos no sistema!\n\nTipo de Rota: ${tipoRotaParaSalvar}`);
+        // 🔥 4. MOSTRAR NOTIFICAÇÃO DO RESULTADO
+        if (resultadoSalvamento.success) {
+          if (resultadoSalvamento.online) {
+            mostrarNotificacao(`✅ PDF gerado e dados sincronizados com sucesso!\nTipo de Rota: ${tipoRotaParaSalvar}`, 'sucesso');
+          } else {
+            mostrarNotificacao(`📱 PDF gerado! Dados salvos localmente (modo offline)\nSerão sincronizados automaticamente quando a conexão voltar.`, 'offline');
+          }
         } else {
-          alert('❌ Erro ao salvar no banco de dados. O PDF foi gerado, mas os dados não foram salvos.');
+          mostrarNotificacao(`⚠️ PDF gerado, mas houve um erro ao salvar os dados.\nVerifique sua conexão e tente novamente.`, 'erro');
+        }
+        
+        // 🔥 5. LIMPAR FORMULÁRIO APÓS SUCESSO
+        if (resultadoSalvamento.success) {
+          setTimeout(() => {
+            limparFormulario();
+            voltarInicio();
+          }, 2000);
         }
         
       } catch (error) {
         console.error('Erro ao gerar PDF:', error);
-        alert('Erro ao gerar PDF. Tente novamente.');
+        mostrarNotificacao('❌ Erro ao gerar PDF. Tente novamente.', 'erro');
       } finally {
         document.getElementById('loadingPDF').style.display = 'none';
       }
+    };
+
+    // ---------- SERVICE WORKER ----------
+    // Corrigido para funcionar apenas em HTTPS e não mostrar erro em file://
+    if ("serviceWorker" in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+      navigator.serviceWorker.register("sw.js")
+        .then(() => console.log("Service Worker registrado!"))
+        .catch(err => console.log("Service Worker não disponível:", err.message));
+    } else {
+      console.log("Service Worker não suportado para este protocolo:", window.location.protocol);
     }
 
-    // Inicializar quando a página carrega
-    window.addEventListener('load', async function() {
-      supabase = inicializarSupabase();
-      
-      console.log('✅ Aplicação carregada.');
-      console.log('   - Supabase:', supabase ? 'OK' : 'Erro');
-      
-      if (supabase) {
-        try {
-          console.log('🔍 Testando conexão com Supabase...');
-          
-          const { data, error } = await supabase
-            .from('colaboradores')
-            .select('count', { count: 'exact', head: true })
-            .eq('status', 'ativo');
-          
-          if (error) {
-            console.error('❌ Erro na conexão com Supabase:', error.message);
-            mostrarStatusConexao('❌ Erro ao conectar com o banco de dados');
-          } else {
-            console.log('✅ Conexão com Supabase estabelecida');
-            mostrarStatusConexao('✅ Conectado ao sistema');
-          }
-        } catch (error) {
-          console.error('❌ Erro ao testar conexão:', error);
-          mostrarStatusConexao('⚠️ Modo offline ativado');
-        }
+    // 🔥 VERIFICAR AO CARREGAR
+    setTimeout(() => {
+      if (!verificarSeAppInstalado() && !window.deferredPrompt) {
+        console.log('ℹ️ Prompt de instalação não disponível ainda');
       }
-    });
+      
+      // Verificar status inicial da conexão
+      if (!navigator.onLine) {
+        window.isOnline = false;
+        mostrarStatusCexao('⚠️ Sem conexão (modo offline)');
+      }
+    }, 1000);
   </script>
 </body>
 </html>
