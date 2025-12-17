@@ -2,8 +2,8 @@
   "name": "Checklist de Veículos - Sem Fronteiras",
   "short_name": "Checklist SF",
   "description": "Sistema de controle e checklist para frota de veículos",
-  "start_url": "/dashboard/",
-  "scope": "/dashboard/",
+  "start_url": "https://controle-veiculos-sf.vercel.app/",
+  "scope": "https://controle-veiculos-sf.vercel.app/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2b6cb0",
@@ -25,3 +25,4 @@
     }
   ]
 }
+
