@@ -15,6 +15,9 @@
   <!-- 🔥 SUPABASE - ADICIONADO defer PARA CARREGAR CORRETAMENTE -->
   <script src="https://unpkg.com/@supabase/supabase-js@2" defer></script>
 
+  <!-- 🔥 CRIPTOGRAFIA PARA SENHAS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -228,16 +231,199 @@
       background: #dc3545;
       color: white;
     }
+
+    /* 🔥 ESTILOS PARA LOGIN E TROCA DE SENHA */
+    .login-box, .troca-senha-box {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      border: 1px solid #dee2e6;
+      margin-top: 20px;
+    }
+    
+    .login-title {
+      text-align: center;
+      color: #2b6cb0;
+      margin-bottom: 20px;
+    }
+    
+    .login-error, .troca-error {
+      color: #dc3545;
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+      display: none;
+    }
+    
+    .login-success, .troca-success {
+      color: #155724;
+      background-color: #d4edda;
+      border: 1px solid #c3e6cb;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+      display: none;
+    }
+    
+    .user-info-bar {
+      background-color: #2b6cb0;
+      color: white;
+      padding: 12px 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .user-info-bar span {
+      font-weight: bold;
+    }
+    
+    .logout-btn-small {
+      background-color: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 5px 15px;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    
+    .logout-btn-small:hover {
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+    
+    .colaborador-info {
+      background-color: #f8f9fa;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #dee2e6;
+      margin-top: 6px;
+      font-weight: normal;
+    }
+    
+    .colaborador-info span {
+      font-weight: bold;
+      color: #2b6cb0;
+    }
+    
+    .password-tips {
+      margin: 20px 0;
+      padding: 15px;
+      background: #fff3cd;
+      border-radius: 5px;
+    }
+    
+    .password-tips p {
+      margin: 0;
+      color: #856404;
+      font-size: 14px;
+    }
+    
+    .first-login-alert {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      text-align: center;
+      border: 2px solid #2b6cb0;
+    }
+    
+    .first-login-alert p {
+      color: #2b6cb0;
+      font-weight: bold;
+      margin: 0;
+    }
   </style>
 </head>
 
 <body>
-  <div class="container">
-    <!-- LOGO -->
+  <!-- 🔥 TELA DE LOGIN -->
+  <div class="container" id="loginContainer">
     <img src="https://i.imgur.com/SEr4lkm.png" alt="Logo" class="logo" />
     <h2>Controle de Uso de Veículos</h2>
     
-    <!-- 🔥 BOTÃO INSTALAR APP (inicialmente oculto) -->
+    <div class="login-box">
+      <h3 class="login-title">Acesso do Colaborador</h3>
+      
+      <label for="loginUsername">Nome de Usuário:</label>
+      <input type="text" id="loginUsername" placeholder="Ex: joao.silva" required autofocus>
+      <small style="color: #666; font-size: 12px; display: block; margin-top: 3px;">
+        Formato: primeiro.segundo (ex: joao.silva)
+      </small>
+      
+      <label for="loginPassword" style="margin-top: 15px;">Senha:</label>
+      <input type="password" id="loginPassword" placeholder="Digite sua senha" required>
+      
+      <div class="login-error" id="loginError"></div>
+      <div class="login-success" id="loginSuccess"></div>
+      
+      <div id="loadingLogin" style="display: none; text-align: center; padding: 15px;">
+        <div style="width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #2b6cb0; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+        <p style="margin-top: 10px;">Autenticando...</p>
+      </div>
+      
+      <button type="button" onclick="fazerLogin()">Entrar</button>
+    </div>
+    
+    <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #666;">
+      Problemas para acessar? Entre em contato com o administrador.
+    </p>
+  </div>
+
+  <!-- 🔥 TELA DE TROCA DE SENHA (Primeiro Acesso) -->
+  <div class="container" id="trocaSenhaContainer" style="display: none;">
+    <img src="https://i.imgur.com/SEr4lkm.png" alt="Logo" class="logo" />
+    <h2>Alteração de Senha Obrigatória</h2>
+    
+    <div class="first-login-alert">
+      <p>🛡️ Por segurança, você deve alterar sua senha no primeiro acesso.</p>
+    </div>
+    
+    <div class="troca-senha-box">
+      <div style="margin-bottom: 20px;">
+        <label for="novaSenha">Nova Senha:</label>
+        <input type="password" id="novaSenha" placeholder="Digite a nova senha" required>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label for="confirmarSenha">Confirmar Nova Senha:</label>
+        <input type="password" id="confirmarSenha" placeholder="Digite novamente" required>
+      </div>
+      
+      <div class="troca-error" id="trocaError"></div>
+      <div class="troca-success" id="trocaSuccess"></div>
+      
+      <div class="password-tips">
+        <p><strong>Dicas para uma senha segura:</strong></p>
+        <p>• Use no mínimo 6 caracteres<br>
+           • Combine letras, números e símbolos<br>
+           • Evite sequências simples como 123456<br>
+           • Não use informações pessoais</p>
+      </div>
+      
+      <button type="button" onclick="trocarSenha()">Alterar Senha e Continuar</button>
+    </div>
+  </div>
+
+  <!-- 🔥 TELA PRINCIPAL (APÓS LOGIN) -->
+  <div class="container" id="mainContainer" style="display: none;">
+    <!-- CABEÇALHO COM INFO DO USUÁRIO -->
+    <div class="user-info-bar">
+      <div>
+        <span id="userName"></span>
+        <div style="font-size: 12px; opacity: 0.9;" id="userEmail"></div>
+      </div>
+      <button class="logout-btn-small" onclick="fazerLogout()">Sair</button>
+    </div>
+    
+    <img src="https://i.imgur.com/SEr4lkm.png" alt="Logo" class="logo" />
+    <h2>Controle de Uso de Veículos</h2>
+    
+    <!-- 🔥 BOTÃO INSTALAR APP -->
     <div id="installContainer" style="display: none;">
       <div class="install-container">
         <button id="installButton" class="install-btn">
@@ -277,12 +463,8 @@
       <input type="text" id="horaAtual" readonly>
 
       <label>Colaborador:</label>
-      <select id="colaborador" required>
-        <option value="">Carregando colaboradores...</option>
-      </select>
-      <div id="loadingColaboradores" style="display: none; text-align: center; padding: 10px;">
-        <div style="width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #2b6cb0; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
-        <p style="margin-top: 5px; font-size: 12px; color: #666;">Carregando colaboradores...</p>
+      <div class="colaborador-info" id="colaboradorInfo">
+        <!-- Nome do colaborador logado será inserido aqui -->
       </div>
 
       <label>Tipo de Veículo:</label>
@@ -339,6 +521,7 @@
     window.deferredPrompt = null;
     window.supabaseCarregado = false;
     window.isOnline = navigator.onLine;
+    window.usuarioLogado = null;
 
     // ---------- DADOS ----------
     const veiculos = {
@@ -372,7 +555,265 @@
       }, 4000);
     }
 
-    // ========== SUPABASE CONFIGURAÇÃO SIMPLIFICADA ==========
+    // ========== FUNÇÃO PARA GERAR HASH SHA256 ==========
+    function gerarHashSHA256(texto) {
+      return CryptoJS.SHA256(texto).toString();
+    }
+
+    // ========== FUNÇÕES DE LOGIN ==========
+    async function fazerLogin() {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const loginError = document.getElementById('loginError');
+      const loginSuccess = document.getElementById('loginSuccess');
+      const loadingLogin = document.getElementById('loadingLogin');
+      
+      // Resetar mensagens
+      loginError.style.display = 'none';
+      loginSuccess.style.display = 'none';
+      
+      // Validação básica
+      if (!username || !password) {
+        loginError.textContent = 'Por favor, preencha todos os campos.';
+        loginError.style.display = 'block';
+        return;
+      }
+      
+      // Mostrar loading
+      loadingLogin.style.display = 'block';
+      
+      try {
+        // Gerar hash da senha
+        const senhaHash = gerarHashSHA256(password);
+        
+        // Verificar se o Supabase está disponível
+        if (!window.supabase || !window.supabaseCarregado) {
+          await window.inicializarSupabase();
+        }
+        
+        if (window.supabaseCarregado && window.supabase) {
+          // Buscar usuário no Supabase pelo nome de usuário
+          const { data: usuarios, error } = await window.supabase
+            .from('usuarios')
+            .select('*')
+            .eq('nome_usuario', username.toLowerCase())
+            .eq('ativo', true)
+            .limit(1);
+          
+          if (error) {
+            throw new Error('Erro ao buscar usuário: ' + error.message);
+          }
+          
+          if (!usuarios || usuarios.length === 0) {
+            throw new Error('Usuário não encontrado ou inativo.');
+          }
+          
+          const usuario = usuarios[0];
+          
+          // Verificar senha
+          if (usuario.senha_hash !== senhaHash) {
+            throw new Error('Senha incorreta.');
+          }
+          
+          // Login bem-sucedido
+          console.log('✅ Login bem-sucedido para:', usuario.nome);
+          
+          // Salvar usuário na sessão
+          window.usuarioLogado = {
+            id: usuario.id,
+            nome: usuario.nome,
+            email: usuario.email,
+            nome_usuario: usuario.nome_usuario,
+            funcao: usuario.funcao,
+            senha_alterada: usuario.senha_alterada || false
+          };
+          
+          // Salvar no localStorage para persistência
+          localStorage.setItem('usuarioLogado', JSON.stringify(window.usuarioLogado));
+          
+          // ⭐⭐ VERIFICAR SE PRECISA TROCAR SENHA
+          if (!usuario.senha_alterada) {
+            // Mostrar tela de troca de senha
+            document.getElementById('loginContainer').style.display = 'none';
+            document.getElementById('trocaSenhaContainer').style.display = 'block';
+            loginSuccess.style.display = 'none';
+          } else {
+            // Senha já alterada, ir para tela principal
+            loginSuccess.textContent = `Login realizado com sucesso! Bem-vindo(a), ${usuario.nome.split(' ')[0]}`;
+            loginSuccess.style.display = 'block';
+            
+            setTimeout(() => {
+              mostrarTelaPrincipal();
+            }, 1000);
+          }
+          
+        } else {
+          // Modo offline - verificar credenciais locais (para desenvolvimento)
+          throw new Error('Conexão com banco de dados não disponível. Tente novamente mais tarde.');
+        }
+        
+      } catch (error) {
+        console.error('❌ Erro no login:', error);
+        loginError.textContent = error.message;
+        loginError.style.display = 'block';
+      } finally {
+        loadingLogin.style.display = 'none';
+      }
+    }
+
+    // ========== FUNÇÃO PARA TROCAR SENHA ==========
+    async function trocarSenha() {
+      const novaSenha = document.getElementById('novaSenha').value;
+      const confirmarSenha = document.getElementById('confirmarSenha').value;
+      const trocaError = document.getElementById('trocaError');
+      const trocaSuccess = document.getElementById('trocaSuccess');
+      
+      // Resetar mensagens
+      trocaError.style.display = 'none';
+      trocaSuccess.style.display = 'none';
+      
+      // Validações
+      if (!novaSenha || !confirmarSenha) {
+        trocaError.textContent = 'Por favor, preencha todos os campos.';
+        trocaError.style.display = 'block';
+        return;
+      }
+      
+      if (novaSenha !== confirmarSenha) {
+        trocaError.textContent = 'As senhas não coincidem.';
+        trocaError.style.display = 'block';
+        return;
+      }
+      
+      if (novaSenha.length < 6) {
+        trocaError.textContent = 'A senha deve ter no mínimo 6 caracteres.';
+        trocaError.style.display = 'block';
+        return;
+      }
+      
+      // Verificar se a nova senha é diferente da atual (123456)
+      const senhaAtualHash = gerarHashSHA256('123456');
+      const novaSenhaHash = gerarHashSHA256(novaSenha);
+      
+      if (senhaAtualHash === novaSenhaHash) {
+        trocaError.textContent = 'A nova senha não pode ser igual à senha padrão (123456).';
+        trocaError.style.display = 'block';
+        return;
+      }
+      
+      try {
+        // Atualizar no Supabase
+        const { error } = await window.supabase
+          .from('usuarios')
+          .update({ 
+            senha_hash: novaSenhaHash,
+            senha_alterada: true
+          })
+          .eq('id', window.usuarioLogado.id);
+        
+        if (error) throw error;
+        
+        // Atualizar localmente
+        window.usuarioLogado.senha_alterada = true;
+        localStorage.setItem('usuarioLogado', JSON.stringify(window.usuarioLogado));
+        
+        // Mensagem de sucesso
+        trocaSuccess.textContent = 'Senha alterada com sucesso! Redirecionando...';
+        trocaSuccess.style.display = 'block';
+        
+        // Redirecionar após 1.5 segundos
+        setTimeout(() => {
+          document.getElementById('trocaSenhaContainer').style.display = 'none';
+          mostrarTelaPrincipal();
+        }, 1500);
+        
+      } catch (error) {
+        console.error('❌ Erro ao trocar senha:', error);
+        trocaError.textContent = 'Erro ao salvar nova senha. Tente novamente.';
+        trocaError.style.display = 'block';
+      }
+    }
+
+    // ========== FUNÇÃO PARA FAZER LOGOUT ==========
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair do sistema?')) {
+        // Limpar dados da sessão
+        window.usuarioLogado = null;
+        localStorage.removeItem('usuarioLogado');
+        
+        // Limpar formulário
+        limparFormulario();
+        
+        // Mostrar tela de login
+        document.getElementById('mainContainer').style.display = 'none';
+        document.getElementById('trocaSenhaContainer').style.display = 'none';
+        document.getElementById('loginContainer').style.display = 'block';
+        
+        // Limpar campos de login
+        document.getElementById('loginUsername').value = '';
+        document.getElementById('loginPassword').value = '';
+        
+        mostrarNotificacao('Logout realizado com sucesso.', 'sucesso');
+      }
+    }
+
+    // ========== FUNÇÃO PARA MOSTRAR TELA PRINCIPAL ==========
+    function mostrarTelaPrincipal() {
+      if (!window.usuarioLogado) {
+        console.error('❌ Nenhum usuário logado');
+        return;
+      }
+      
+      // Esconder outras telas
+      document.getElementById('loginContainer').style.display = 'none';
+      document.getElementById('trocaSenhaContainer').style.display = 'none';
+      
+      // Mostrar tela principal
+      document.getElementById('mainContainer').style.display = 'block';
+      
+      // Preencher informações do usuário
+      document.getElementById('userName').textContent = window.usuarioLogado.nome;
+      document.getElementById('userEmail').textContent = window.usuarioLogado.email || window.usuarioLogado.nome_usuario;
+      
+      document.getElementById('colaboradorInfo').innerHTML = `
+        <span>${window.usuarioLogado.nome}</span>
+        ${window.usuarioLogado.funcao ? `<br><small>${window.usuarioLogado.funcao}</small>` : ''}
+      `;
+      
+      // Atualizar nome da assinatura
+      document.getElementById('nomeAssinatura').textContent = window.usuarioLogado.nome;
+      
+      // Inicializar data/hora
+      atualizarDataHora();
+      
+      mostrarNotificacao(`Bem-vindo(a), ${window.usuarioLogado.nome.split(' ')[0]}!`, 'sucesso');
+    }
+
+    // ========== VERIFICAR SE USUÁRIO JÁ ESTÁ LOGADO ==========
+    function verificarLoginSalvo() {
+      try {
+        const usuarioSalvo = localStorage.getItem('usuarioLogado');
+        
+        if (usuarioSalvo) {
+          window.usuarioLogado = JSON.parse(usuarioSalvo);
+          console.log('✅ Usuário recuperado da sessão:', window.usuarioLogado.nome);
+          
+          // Se a senha já foi alterada, mostrar tela principal
+          if (window.usuarioLogado.senha_alterada) {
+            mostrarTelaPrincipal();
+          } else {
+            // Senha não alterada, mostrar tela de troca
+            document.getElementById('loginContainer').style.display = 'none';
+            document.getElementById('trocaSenhaContainer').style.display = 'block';
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erro ao verificar login salvo:', error);
+        localStorage.removeItem('usuarioLogado');
+      }
+    }
+
+    // ========== SUPABASE CONFIGURAÇÃO ==========
     window.inicializarSupabase = async function() {
       try {
         console.log('🔄 Inicializando Supabase...');
@@ -397,7 +838,7 @@
         );
         
         const conexaoPromise = window.supabase
-          .from('colaboradores')
+          .from('usuarios')
           .select('count', { count: 'exact', head: true })
           .limit(1);
         
@@ -453,14 +894,6 @@
       
       document.getElementById("step-selection").style.display = "none";
       document.getElementById("formulario").style.display = "block";
-      
-      setTimeout(async () => {
-        try {
-          await carregarColaboradores();
-        } catch (error) {
-          console.error("❌ Erro ao carregar colaboradores:", error);
-        }
-      }, 100);
       
       setTimeout(function() {
         try {
@@ -543,97 +976,6 @@
           statusDiv.style.borderColor = '#dee2e6';
         }
       }
-    }
-
-    // ---------- CARREGAR COLABORADORES ----------
-    async function carregarColaboradores() {
-      const selectColaborador = document.getElementById("colaborador");
-      const loadingDiv = document.getElementById("loadingColaboradores");
-      
-      if (!selectColaborador) {
-        console.error("❌ Elemento 'colaborador' não encontrado");
-        return;
-      }
-      
-      try {
-        selectColaborador.style.display = 'none';
-        if (loadingDiv) loadingDiv.style.display = 'block';
-        
-        console.log('🔍 Buscando colaboradores do Supabase...');
-        
-        // Tentar carregar do Supabase
-        if (window.supabaseCarregado && window.supabase) {
-          try {
-            const { data: colaboradores, error } = await window.supabase
-              .from('colaboradores')
-              .select('*')
-              .order('nome');
-            
-            if (!error && colaboradores && colaboradores.length > 0) {
-              console.log(`✅ ${colaboradores.length} colaboradores carregados do Supabase`);
-              
-              selectColaborador.innerHTML = '<option value="">Selecione um colaborador</option>';
-              colaboradores.forEach(colab => {
-                const option = document.createElement("option");
-                option.value = colab.nome;
-                option.textContent = colab.nome;
-                if (colab.funcao) {
-                  option.setAttribute('data-funcao', colab.funcao);
-                }
-                selectColaborador.appendChild(option);
-              });
-              
-              selectColaborador.style.display = 'block';
-              if (loadingDiv) loadingDiv.style.display = 'none';
-              return;
-            }
-          } catch (supabaseError) {
-            console.warn('⚠️ Erro ao carregar do Supabase:', supabaseError);
-          }
-        }
-        
-        // Fallback para lista local
-        console.log('📭 Usando lista local');
-        usarListaFallback();
-        
-      } catch (error) {
-        console.error('❌ Erro ao carregar colaboradores:', error);
-        usarListaFallback();
-      }
-    }
-
-    function usarListaFallback() {
-      const selectColaborador = document.getElementById("colaborador");
-      const loadingDiv = document.getElementById("loadingColaboradores");
-      
-      if (!selectColaborador) return;
-      
-      const listaFallback = [
-        'Henrique da Silva Barbosa',
-        'Hugo Nascimento dos Santos',
-        'Jhulio Cezar de Alencar Araujo',
-        'João Paulo Maciel Santo',
-        'João Vitor Rodrigues do Nascimento',
-        'Kaio Cezar Jesus Melo Araujo',
-        'Luiz Felipe Aguiar de Castro',
-        'Marcos Vinicius Lima da Silva',
-        'Mauricio Martins da Cunha',
-        'Victor Kayan Pereira da Silva',
-        'William Matos de Sousa'
-      ];
-      
-      selectColaborador.innerHTML = '<option value="">Selecione um colaborador</option>';
-      listaFallback.forEach(nome => {
-        const option = document.createElement("option");
-        option.value = nome;
-        option.textContent = nome;
-        selectColaborador.appendChild(option);
-      });
-      
-      selectColaborador.style.display = 'block';
-      if (loadingDiv) loadingDiv.style.display = 'none';
-      
-      console.log('✅ Lista de colaboradores carregada localmente');
     }
 
     // ---------- FUNÇÕES DO SISTEMA ----------
@@ -791,19 +1133,6 @@
       };
     }
 
-    atualizarDataHora();
-    setInterval(atualizarDataHora, 60000);
-
-    // ---------- ATUALIZAR NOME DA ASSINATURA ----------
-    document.getElementById("colaborador").addEventListener("change", function(e) {
-      const nomeCompleto = e.target.value;
-      const optionSelecionada = e.target.options[e.target.selectedIndex];
-      const funcao = optionSelecionada.getAttribute('data-funcao') || '';
-      
-      const textoExibicao = funcao ? `${nomeCompleto} - ${funcao}` : nomeCompleto;
-      document.getElementById("nomeAssinatura").textContent = textoExibicao;
-    });
-
     // ========== FUNÇÃO PRINCIPAL: SALVAR NO SUPABASE ==========
     async function salvarChecklist(dados) {
       try {
@@ -821,20 +1150,20 @@
         
         // Comprimir imagem se necessário
         let fotoComprimida = dados.fotoPainel;
-        if (dados.fotoPainel && dados.fotoPainel.length > 100000) { // > 100KB
+        if (dados.fotoPainel && dados.fotoPainel.length > 100000) {
           console.log('📸 Comprimindo imagem...');
           fotoComprimida = await comprimirImagem(dados.fotoPainel, 800, 0.7);
         }
         
-        // Preparar os dados para o Supabase - AJUSTADO PARA A ESTRUTURA DA TABELA
+        // 🔥 CORREÇÃO: AGORA USANDO A COLUNA colaborador_id QUE EXISTE
         const dadosParaSalvar = {
-          // ID será gerado automaticamente pelo Supabase
-          veiculo_id: dados.veiculoId, // Precisa mapear corretamente os IDs dos veículos
-          data: dados.dataSupabase, // Formato YYYY-MM-DD
+          veiculo_id: dados.veiculoId,
+          data: dados.dataSupabase,
           km: parseInt(dados.km),
-          colaborador: dados.colaborador,
-          itens: null, // Campo opcional, pode ser preenchido posteriormente
-          observacoes: null, // Campo opcional
+          colaborador: window.usuarioLogado.nome,
+          colaborador_id: window.usuarioLogado.id, // ⭐ COLUNA QUE VOCÊ CRIOU
+          itens: null,
+          observacoes: null,
           tipo_rota: dados.tipoRota,
           hora: dados.hora,
           tipo_veiculo: dados.tipoVeiculo,
@@ -870,6 +1199,8 @@
           const checklistsOffline = JSON.parse(localStorage.getItem('checklists_offline') || '[]');
           const dadosOffline = {
             ...dados,
+            colaborador: window.usuarioLogado.nome,
+            colaborador_id: window.usuarioLogado.id, // ⭐ MESMA CORREÇÃO OFFLINE
             tentativa_salvamento: new Date().toISOString(),
             status: 'pendente'
           };
@@ -909,12 +1240,13 @@
           const dados = dadosOffline[i];
           
           try {
-            // Mapear dados offline para a estrutura correta do banco
+            // 🔥 CORREÇÃO: INCLUINDO A COLUNA colaborador_id
             const dadosParaEnviar = {
               veiculo_id: dados.veiculoId || null,
               data: dados.dataSupabase || dados.data?.split('/').reverse().join('-') || new Date().toISOString().split('T')[0],
               km: parseInt(dados.km) || 0,
               colaborador: dados.colaborador || '',
+              colaborador_id: dados.colaborador_id || null, // ⭐ COLUNA QUE VOCÊ CRIOU
               itens: null,
               observacoes: null,
               tipo_rota: dados.tipoRota || '',
@@ -1083,6 +1415,22 @@
         console.log('✅ Botão "Continuar" configurado com sucesso');
       }
       
+      // Permitir login com Enter
+      document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          fazerLogin();
+        }
+      });
+      
+      // Permitir troca de senha com Enter
+      document.getElementById('confirmarSenha').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          trocarSenha();
+        }
+      });
+      
       // 🔥 MONITORAR CONEXÃO
       window.addEventListener('online', function() {
         window.isOnline = true;
@@ -1110,6 +1458,15 @@
           console.warn('⚠️ Supabase não disponível, continuando em modo local');
         }
       }, 1000);
+      
+      // 🔥 VERIFICAR SE USUÁRIO JÁ ESTÁ LOGADO
+      setTimeout(() => {
+        verificarLoginSalvo();
+      }, 500);
+      
+      // Inicializar data/hora
+      atualizarDataHora();
+      setInterval(atualizarDataHora, 60000);
       
       console.log('✅ Aplicação carregada');
       mostrarStatusConexao('✅ Sistema carregado');
@@ -1171,9 +1528,9 @@
       console.log('🎉 App instalado com sucesso!');
       
       const installContainer = document.getElementById('installContainer');
-      if (installContainer) {
-        installContainer.style.display = 'none';
-      }
+        if (installContainer) {
+          installContainer.style.display = 'none';
+        }
       
       mostrarNotificacao('✅ App instalado com sucesso! Agora você pode acessar offline', 'sucesso');
       window.deferredPrompt = null;
@@ -1249,7 +1606,6 @@
         const dadosParaSalvar = {
           dataSupabase: dataSupabase,
           hora: hora,
-          colaborador: document.getElementById('colaborador').value,
           tipoVeiculo: document.getElementById('tipoVeiculo').value,
           veiculoId: window.veiculoSelecionado?.id || null,
           veiculoNome: document.getElementById('veiculo').options[document.getElementById('veiculo').selectedIndex].text,
@@ -1269,7 +1625,6 @@
         
         const dataExibicao = document.getElementById('dataAtual').value;
         const horaExibicao = document.getElementById('horaAtual').value;
-        const colaborador = document.getElementById('colaborador').value;
         const tipoVeiculo = document.getElementById('tipoVeiculo').value;
         const veiculoNome = document.getElementById('veiculo').options[document.getElementById('veiculo').selectedIndex].text;
         const km = document.getElementById('km').value;
@@ -1308,7 +1663,7 @@
         
         yPos = adicionarCampo('Data:', dataExibicao, yPos);
         yPos = adicionarCampo('Hora:', horaExibicao, yPos);
-        yPos = adicionarCampo('Colaborador:', colaborador, yPos);
+        yPos = adicionarCampo('Colaborador:', window.usuarioLogado.nome, yPos);
         yPos = adicionarCampo('Tipo de Veículo:', tipoVeiculo.charAt(0).toUpperCase() + tipoVeiculo.slice(1), yPos);
         yPos = adicionarCampo('Veículo:', veiculoNome, yPos);
         yPos = adicionarCampo('Placa:', placa, yPos);
@@ -1364,7 +1719,7 @@
         
         doc.setFont(undefined, 'bold');
         doc.setFontSize(9);
-        doc.text(colaborador, pageWidth / 2, yPos, { align: 'center' });
+        doc.text(window.usuarioLogado.nome, pageWidth / 2, yPos, { align: 'center' });
         
         // 🔥 3. STATUS DO SALVAMENTO NO PDF
         yPos += 10;
@@ -1414,7 +1769,6 @@
     };
 
     // ---------- SERVICE WORKER ----------
-    // Corrigido para funcionar apenas em HTTPS e não mostrar erro em file://
     if ("serviceWorker" in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
       navigator.serviceWorker.register("sw.js")
         .then(() => console.log("Service Worker registrado!"))
@@ -1432,7 +1786,7 @@
       // Verificar status inicial da conexão
       if (!navigator.onLine) {
         window.isOnline = false;
-        mostrarStatusCexao('⚠️ Sem conexão (modo offline)');
+        mostrarStatusConexao('⚠️ Sem conexão (modo offline)');
       }
     }, 1000);
   </script>
