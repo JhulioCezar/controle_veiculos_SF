@@ -327,6 +327,11 @@
             margin-top: 10px;
             display: none;
         }
+        
+        .cpf-duplicado {
+            border-color: #ff9800 !important;
+            background-color: #fff8e1;
+        }
     </style>
 </head>
 <body>
@@ -398,8 +403,11 @@
                     <div class="form-grid">
                         <div class="form-group">
                             <label for="cpf">CPF *</label>
-                            <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" oninput="formatarCPF(this)">
+                            <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14" oninput="formatarCPF(this)" onblur="verificarCPFDuplicado()">
                             <div class="error-message" id="cpfError">CPF no formato 000.000.000-00</div>
+                            <div class="error-message" id="cpfDuplicadoError" style="color: #ff9800; display: none;">
+                                ⚠️ Este CPF já está cadastrado para outro colaborador
+                            </div>
                         </div>
                         
                         <div class="form-group">
@@ -421,6 +429,7 @@
                                 <option value="Supervisor">Supervisor</option>
                                 <option value="Técnico de Infraestrutura">Técnico de Infraestrutura</option>
                                 <option value="Técnico de Instalação">Técnico de Instalação</option>
+                                <option value="Motorista">Motorista</option>
                                 <option value="Outros">Outros</option>
                             </select>
                             <div class="error-message" id="funcaoError">Função é obrigatória</div>
@@ -439,6 +448,7 @@
                                 <option value="Recursos Humanos">Recursos Humanos</option>
                                 <option value="SAC">SAC</option>
                                 <option value="SOC">SOC</option>
+                                <option value="Operações">Operações</option>
                                 <option value="Outros">Outros</option>
                             </select>
                             <div class="error-message" id="setorError">Setor é obrigatório</div>
@@ -491,6 +501,7 @@
         
         // VARIÁVEIS GLOBAIS
         let colaboradores = [];
+        let cpfDuplicado = false;
         
         // FUNÇÕES DE FORMATAÇÃO E VALIDAÇÃO
         function formatarNomeCompleto(input) {
@@ -530,6 +541,45 @@
                 mostrarErro(input, 'cpfError', 'CPF no formato 000.000.000-00');
             } else {
                 removerErro(input, 'cpfError');
+            }
+            
+            // Limpar erro de duplicado quando o usuário digitar
+            input.classList.remove('cpf-duplicado');
+            document.getElementById('cpfDuplicadoError').style.display = 'none';
+            cpfDuplicado = false;
+        }
+        
+        async function verificarCPFDuplicado() {
+            const cpfInput = document.getElementById('cpf');
+            const cpf = cpfInput.value.trim();
+            const idAtual = document.getElementById('colaboradorId').value;
+            
+            if (!cpf || cpf.length < 14) return;
+            
+            try {
+                // Verificar se o CPF já existe para outro colaborador
+                const { data, error } = await window.supabaseClient
+                    .from('colaboradores')
+                    .select('id, nome_completo')
+                    .eq('cpf', cpf)
+                    .neq('id', idAtual || '')
+                    .limit(1);
+                
+                if (error) throw error;
+                
+                if (data && data.length > 0) {
+                    cpfDuplicado = true;
+                    cpfInput.classList.add('cpf-duplicado');
+                    document.getElementById('cpfDuplicadoError').style.display = 'block';
+                    document.getElementById('cpfDuplicadoError').innerHTML = 
+                        `⚠️ Este CPF já está cadastrado para: <strong>${data[0].nome_completo}</strong>`;
+                } else {
+                    cpfDuplicado = false;
+                    cpfInput.classList.remove('cpf-duplicado');
+                    document.getElementById('cpfDuplicadoError').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('❌ Erro ao verificar CPF:', error);
             }
         }
         
@@ -634,6 +684,10 @@
         function validarFormulario() {
             let valido = true;
             
+            // Limpar erros de CPF duplicado temporariamente
+            const cpfInput = document.getElementById('cpf');
+            cpfInput.classList.remove('cpf-duplicado');
+            
             // Nome
             valido = validarCampo(document.getElementById('nome'), 'nomeError', 'Nome completo é obrigatório') && valido;
             
@@ -645,6 +699,13 @@
                 valido = false;
             } else {
                 removerErro(cpf, 'cpfError');
+            }
+            
+            // Verificar se há CPF duplicado
+            if (cpfDuplicado) {
+                cpf.classList.add('cpf-duplicado');
+                document.getElementById('cpfDuplicadoError').style.display = 'block';
+                valido = false;
             }
             
             // Telefone
@@ -731,7 +792,13 @@
                 if (!window.supabaseClient) {
                     window.supabaseClient = supabase.createClient(
                         SUPABASE_CONFIG.url,
-                        SUPABASE_CONFIG.anonKey
+                        SUPABASE_CONFIG.anonKey,
+                        {
+                            auth: {
+                                persistSession: false,
+                                autoRefreshToken: false
+                            }
+                        }
                     );
                 }
                 
@@ -893,6 +960,11 @@
             document.getElementById('outrosFuncao').style.display = 'none';
             document.getElementById('outrosSetor').style.display = 'none';
             
+            // Limpar erro de CPF duplicado
+            cpfDuplicado = false;
+            document.getElementById('cpf').classList.remove('cpf-duplicado');
+            document.getElementById('cpfDuplicadoError').style.display = 'none';
+            
             // Configurar data máxima
             const hoje = new Date().toISOString().split('T')[0];
             document.getElementById('dataAdmissao').max = hoje;
@@ -927,8 +999,15 @@
                 document.getElementById('cpf').value = data.cpf || '';
                 document.getElementById('telefone').value = data.telefone || '';
                 
+                // Limpar erro de CPF duplicado ao editar
+                cpfDuplicado = false;
+                document.getElementById('cpf').classList.remove('cpf-duplicado');
+                document.getElementById('cpfDuplicadoError').style.display = 'none';
+                
                 // Configurar função
-                if (['Administrativo', 'Encarregado', 'Engenheiro', 'Gerente', 'Supervisor', 'Técnico de Infraestrutura', 'Técnico de Instalação'].includes(data.funcao)) {
+                const funcoesPredefinidas = ['Administrativo', 'Encarregado', 'Engenheiro', 'Gerente', 'Supervisor', 
+                                           'Técnico de Infraestrutura', 'Técnico de Instalação', 'Motorista'];
+                if (funcoesPredefinidas.includes(data.funcao)) {
                     document.getElementById('funcao').value = data.funcao;
                     document.getElementById('outrosFuncao').style.display = 'none';
                 } else {
@@ -938,7 +1017,9 @@
                 }
                 
                 // Configurar setor
-                if (['DADOS', 'Engenharia', 'Gerência', 'INFRA', 'NOC', 'Recursos Humanos', 'SAC', 'SOC'].includes(data.setor)) {
+                const setoresPredefinidos = ['DADOS', 'Engenharia', 'Gerência', 'INFRA', 'NOC', 
+                                           'Recursos Humanos', 'SAC', 'SOC', 'Operações'];
+                if (setoresPredefinidos.includes(data.setor)) {
                     document.getElementById('setor').value = data.setor;
                     document.getElementById('outrosSetor').style.display = 'none';
                 } else {
@@ -998,36 +1079,58 @@
                     setor = document.getElementById('outrosSetor').value.trim();
                 }
                 
+                // Validação final
                 if (!nome || !funcao || !setor || !cpf || !telefone || !email || !dataAdmissao || !status) {
                     mostrarNotificacao('⚠️ Preencha todos os campos obrigatórios', 'error');
                     return;
                 }
                 
-                // Use os nomes CORRETOS das suas colunas
+                if (cpfDuplicado) {
+                    mostrarNotificacao('⚠️ Corrija o CPF duplicado antes de salvar', 'error');
+                    return;
+                }
+                
+                console.log('💾 Salvando colaborador:', {
+                    id: id || 'NOVO',
+                    nome,
+                    funcao,
+                    setor,
+                    cpf,
+                    telefone,
+                    email,
+                    dataAdmissao,
+                    status
+                });
+                
+                // Construir objeto com os nomes EXATOS das colunas do Supabase
                 const dados = {
                     nome_completo: nome,
                     funcao: funcao,
                     setor: setor,
+                    cpf: cpf,
+                    telefone: telefone,
+                    email: email,
+                    data_admissao: dataAdmissao,
                     status: status,
-                    cpf: cpf || null,
-                    telefone: telefone || null,
-                    email: email || null,
-                    data_admissao: dataAdmissao || null,
                     data_atualizacao: new Date().toISOString()
                 };
-                
-                console.log('💾 Salvando colaborador:', dados);
                 
                 let resultado;
                 
                 if (id) {
-                    // ATUALIZAR
+                    // ATUALIZAR registro existente
+                    console.log(`🔄 Atualizando colaborador ID: ${id}`);
+                    
                     resultado = await window.supabaseClient
                         .from('colaboradores')
                         .update(dados)
                         .eq('id', id);
+                    
                 } else {
-                    // NOVO
+                    // NOVO registro
+                    console.log('🆕 Criando novo colaborador');
+                    
+                    // Adicionar campos adicionais para novo registro
                     dados.data_criacao = new Date().toISOString();
                     dados.created_by = 'sistema_colaboradores';
                     
@@ -1036,16 +1139,28 @@
                         .insert([dados]);
                 }
                 
+                // Verificar erro
                 if (resultado.error) {
-                    console.error('❌ Erro Supabase:', resultado.error);
+                    console.error('❌ ERRO DO SUPABASE:', resultado.error);
                     
-                    if (resultado.error.message.includes('permission denied')) {
-                        mostrarNotificacao('❌ Permissão negada. Configure RLS no Supabase.', 'error');
+                    // Tratamento específico para erro de CPF duplicado
+                    if (resultado.error.message && resultado.error.message.includes('duplicate key') && resultado.error.message.includes('cpf')) {
+                        mostrarNotificacao('❌ Este CPF já está cadastrado para outro colaborador', 'error');
+                        cpfDuplicado = true;
+                        document.getElementById('cpf').classList.add('cpf-duplicado');
+                        document.getElementById('cpfDuplicadoError').style.display = 'block';
+                        return;
+                    }
+                    
+                    if (resultado.error.message && resultado.error.message.includes('permission denied')) {
+                        mostrarNotificacao('❌ Permissão negada. Verifique as políticas RLS no Supabase.', 'error');
                     } else {
-                        mostrarNotificacao('❌ Erro ao salvar: ' + resultado.error.message, 'error');
+                        mostrarNotificacao(`❌ Erro ao salvar: ${resultado.error.message}`, 'error');
                     }
                     return;
                 }
+                
+                console.log('✅ Operação concluída com sucesso');
                 
                 mostrarNotificacao(`✅ Colaborador ${id ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
                 
@@ -1053,8 +1168,8 @@
                 await carregarColaboradores();
                 
             } catch (error) {
-                console.error('❌ Erro ao salvar colaborador:', error);
-                mostrarNotificacao('❌ Erro ao salvar colaborador: ' + error.message, 'error');
+                console.error('❌ Erro geral ao salvar colaborador:', error);
+                mostrarNotificacao(`❌ Erro ao salvar colaborador: ${error.message}`, 'error');
             }
         }
         
@@ -1081,7 +1196,7 @@
                     console.error('❌ Erro ao alterar status:', error);
                     
                     if (error.message.includes('permission denied')) {
-                        mostrarNotificacao('❌ Permissão negada. Configure RLS no Supabase.', 'error');
+                        mostrarNotificacao('❌ Permissão negada. Verifique as políticas RLS no Supabase.', 'error');
                     } else {
                         mostrarNotificacao('❌ Erro ao alterar status: ' + error.message, 'error');
                     }
@@ -1119,7 +1234,7 @@
             } catch (error) {
                 console.error('❌ Erro ao excluir colaborador:', error);
                 
-                if (error.message.includes('violates foreign key constraint')) {
+                if (error.message && error.message.includes('violates foreign key constraint')) {
                     mostrarNotificacao('❌ Não é possível excluir: colaborador tem registros associados', 'error');
                 } else {
                     mostrarNotificacao('❌ Erro ao excluir colaborador', 'error');
