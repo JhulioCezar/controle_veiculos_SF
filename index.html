@@ -502,6 +502,11 @@
         <p style="margin-top: 10px;">Gerando PDF e sincronizando com banco de dados...</p>
       </div>
 
+      <!-- 🔥 BOTÃO DE TESTE TEMPORÁRIO -->
+      <button type="button" style="background-color: #28a745; margin-top: 10px;" onclick="testarAtualizacaoDados()">
+        🔁 Atualizar Meus Dados
+      </button>
+
       <button type="button" class="btn-secondary" onclick="voltarInicio()">Voltar</button>
       <button type="button" class="btn-clear" onclick="limparFormulario()">Limpar Formulário</button>
       <button type="button" onclick="gerarESalvarPDF()">Gerar e Salvar PDF</button>
@@ -522,6 +527,7 @@
     window.supabaseCarregado = false;
     window.isOnline = navigator.onLine;
     window.usuarioLogado = null;
+    window.intervaloAtualizacao = null;
 
     // ---------- DADOS ----------
     const veiculos = {
@@ -558,6 +564,94 @@
     // ========== FUNÇÃO PARA GERAR HASH SHA256 ==========
     function gerarHashSHA256(texto) {
       return CryptoJS.SHA256(texto).toString();
+    }
+
+    // ========== FUNÇÃO PARA ATUALIZAR DADOS DO USUÁRIO ==========
+    async function atualizarDadosUsuario() {
+      if (!window.usuarioLogado || !window.supabaseCarregado) {
+        console.log('⚠️ Não é possível atualizar: usuário não logado ou Supabase não disponível');
+        return;
+      }
+      
+      try {
+        console.log('🔄 Buscando dados atualizados do usuário...');
+        
+        // 🔥 BUSCAR DADOS ATUALIZADOS DO BANCO
+        const { data: usuarioAtualizado, error } = await window.supabase
+          .from('usuarios')
+          .select('*')
+          .eq('id', window.usuarioLogado.id)
+          .single();
+        
+        if (error) throw error;
+        
+        if (usuarioAtualizado) {
+          // 🔥 ATUALIZAR DADOS LOCALMENTE
+          window.usuarioLogado = {
+            id: usuarioAtualizado.id,
+            nome: usuarioAtualizado.nome,
+            email: usuarioAtualizado.email,
+            nome_usuario: usuarioAtualizado.nome_usuario,
+            funcao: usuarioAtualizado.funcao,  // ⭐ AGORA ATUALIZADO!
+            senha_alterada: usuarioAtualizado.senha_alterada || false
+          };
+          
+          // 🔥 SALVAR NO LOCALSTORAGE
+          localStorage.setItem('usuarioLogado', JSON.stringify(window.usuarioLogado));
+          
+          // 🔥 ATUALIZAR NA TELA
+          document.getElementById('userName').textContent = window.usuarioLogado.nome;
+          document.getElementById('userEmail').textContent = window.usuarioLogado.email || window.usuarioLogado.nome_usuario;
+          
+          document.getElementById('colaboradorInfo').innerHTML = `
+            <span>${window.usuarioLogado.nome}</span>
+            ${window.usuarioLogado.funcao ? `<br><small>${window.usuarioLogado.funcao}</small>` : ''}
+          `;
+          
+          // Atualizar nome da assinatura
+          document.getElementById('nomeAssinatura').textContent = window.usuarioLogado.nome;
+          
+          console.log('✅ Dados do usuário atualizados:', {
+            nome: window.usuarioLogado.nome,
+            funcao: window.usuarioLogado.funcao,
+            email: window.usuarioLogado.email
+          });
+          
+          return true;
+        }
+      } catch (error) {
+        console.warn('⚠️ Não foi possível atualizar dados do usuário:', error.message);
+        // Continuar com dados locais em caso de erro
+      }
+      return false;
+    }
+
+    // ========== FUNÇÃO DE TESTE TEMPORÁRIA ==========
+    async function testarAtualizacaoDados() {
+      const atualizado = await atualizarDadosUsuario();
+      if (atualizado) {
+        mostrarNotificacao(`✅ Dados atualizados!\nNome: ${window.usuarioLogado.nome}\nFunção: ${window.usuarioLogado.funcao}`, 'sucesso');
+      } else {
+        mostrarNotificacao('⚠️ Não foi possível atualizar os dados. Verifique a conexão.', 'erro');
+      }
+    }
+
+    // ========== INICIAR ATUALIZAÇÃO PERIÓDICA ==========
+    function iniciarAtualizacaoPeriodica() {
+      // Limpar intervalo anterior se existir
+      if (window.intervaloAtualizacao) {
+        clearInterval(window.intervaloAtualizacao);
+      }
+      
+      // Atualizar a cada 5 minutos (300000 ms)
+      window.intervaloAtualizacao = setInterval(async () => {
+        if (window.usuarioLogado && window.supabaseCarregado) {
+          console.log('⏰ Atualização periódica de dados...');
+          await atualizarDadosUsuario();
+        }
+      }, 300000); // 5 minutos
+      
+      console.log('✅ Atualização periódica de dados iniciada');
     }
 
     // ========== FUNÇÕES DE LOGIN ==========
@@ -741,6 +835,12 @@
         window.usuarioLogado = null;
         localStorage.removeItem('usuarioLogado');
         
+        // Limpar intervalo de atualização
+        if (window.intervaloAtualizacao) {
+          clearInterval(window.intervaloAtualizacao);
+          window.intervaloAtualizacao = null;
+        }
+        
         // Limpar formulário
         limparFormulario();
         
@@ -771,17 +871,17 @@
       // Mostrar tela principal
       document.getElementById('mainContainer').style.display = 'block';
       
-      // Preencher informações do usuário
-      document.getElementById('userName').textContent = window.usuarioLogado.nome;
-      document.getElementById('userEmail').textContent = window.usuarioLogado.email || window.usuarioLogado.nome_usuario;
+      // 🔥 ATUALIZAR DADOS DO USUÁRIO DO BANCO
+      atualizarDadosUsuario().then(atualizado => {
+        if (atualizado) {
+          console.log('✅ Tela principal carregada com dados atualizados');
+        } else {
+          console.log('⚠️ Tela principal carregada com dados locais');
+        }
+      });
       
-      document.getElementById('colaboradorInfo').innerHTML = `
-        <span>${window.usuarioLogado.nome}</span>
-        ${window.usuarioLogado.funcao ? `<br><small>${window.usuarioLogado.funcao}</small>` : ''}
-      `;
-      
-      // Atualizar nome da assinatura
-      document.getElementById('nomeAssinatura').textContent = window.usuarioLogado.nome;
+      // Iniciar atualização periódica
+      iniciarAtualizacaoPeriodica();
       
       // Inicializar data/hora
       atualizarDataHora();
