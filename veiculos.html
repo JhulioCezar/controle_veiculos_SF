@@ -45,7 +45,7 @@
         
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 15px;
             padding: 20px 30px;
             background: #f8f9fa;
@@ -190,6 +190,11 @@
             color: #92400e;
         }
         
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
         .modal {
             display: none;
             position: fixed;
@@ -206,7 +211,7 @@
         .modal-content {
             background: white;
             border-radius: 12px;
-            max-width: 700px;
+            max-width: 800px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
@@ -356,19 +361,25 @@
             background: #f59e0b;
         }
         
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
             .form-grid {
                 grid-template-columns: 1fr;
             }
             
             .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(3, 1fr);
             }
             
             .header {
                 flex-direction: column;
                 gap: 15px;
                 text-align: center;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
     </style>
@@ -379,7 +390,7 @@
         <div class="header">
             <h1>🚗 Gerenciamento de Veículos</h1>
             <div>
-                <button onclick="fecharJanela()" class="btn btn-warning">✕ Fechar</button>
+                <button onclick="fecharJanela()" class="btn btn-warning">❌ Fechar</button>
             </div>
         </div>
         
@@ -396,7 +407,7 @@
             <!-- TOOLBAR -->
             <div class="toolbar">
                 <h2>Frota de Veículos</h2>
-                <button onclick="abrirModalNovo()" class="btn btn-success">＋ Novo Veículo</button>
+                <button onclick="abrirModalNovo()" class="btn btn-success">➕ Novo Veículo</button>
             </div>
             
             <!-- TABELA -->
@@ -406,16 +417,17 @@
                         <tr>
                             <th>Placa</th>
                             <th>Modelo</th>
+                            <th>Setor</th>
                             <th>Ano</th>
-                            <th>Cor</th>
                             <th>Status</th>
+                            <th>KM Atual</th>
                             <th>Última Manutenção</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaBody">
                         <tr>
-                            <td colspan="7" class="loading">
+                            <td colspan="8" class="loading">
                                 <div class="spinner"></div>
                                 <div>Carregando veículos...</div>
                             </td>
@@ -459,22 +471,60 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="ano">Ano *</label>
-                            <input type="number" id="ano" min="1990" max="2025" required>
-                            <div class="error-message" id="anoError">Ano entre 1990 e 2025</div>
+                            <label for="setor">Setor *</label>
+                            <select id="setor" required>
+                                <option value="">Selecione</option>
+                                <option value="Frota">Frota</option>
+                                <option value="Diretoria">Diretoria</option>
+                                <option value="Vendas">Vendas</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="RH">RH</option>
+                                <option value="TI">TI</option>
+                                <option value="Manutenção">Manutenção</option>
+                                <option value="Logística">Logística</option>
+                                <option value="Administrativo">Administrativo</option>
+                                <option value="Comercial">Comercial</option>
+                                <option value="Operacional">Operacional</option>
+				<option value="Sede">Sede</option>
+				<option value="Clínica">Clínica</option>
+				<option value="Infra">Infra</option>
+                            </select>
+                            <div class="error-message" id="setorError">Setor é obrigatório</div>
                         </div>
                     </div>
                     
                     <div class="form-grid">
                         <div class="form-group">
+                            <label for="ano">Ano *</label>
+                            <input type="number" id="ano" min="1990" max="2025" required>
+                            <div class="error-message" id="anoError">Ano entre 1990 e 2025</div>
+                        </div>
+                        
+                        <div class="form-group">
                             <label for="cor">Cor</label>
                             <input type="text" id="cor" onblur="capitalizarPrimeiraLetra(this)">
                         </div>
-                        
+                    </div>
+                    
+                    <div class="form-grid">
                         <div class="form-group">
                             <label for="km_atual">KM Atual *</label>
                             <input type="number" id="km_atual" min="0" required>
                             <div class="error-message" id="kmError">KM atual é obrigatório</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="tipo_veiculo">Tipo de Veículo *</label>
+                            <select id="tipo_veiculo" required>
+                                <option value="">Selecione</option>
+                                <option value="Carro">Carro</option>
+                                <option value="Moto">Moto</option>
+                                <option value="Caminhão">Caminhão</option>
+                                <option value="Van">Van</option>
+                                <option value="Ônibus">Ônibus</option>
+                                <option value="Utilitário">Utilitário</option>
+                            </select>
+                            <div class="error-message" id="tipoVeiculoError">Tipo é obrigatório</div>
                         </div>
                     </div>
                     
@@ -501,6 +551,11 @@
                             </select>
                             <div class="error-message" id="statusError">Status é obrigatório</div>
                         </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ultima_manutencao">Última Manutenção</label>
+                        <input type="date" id="ultima_manutencao">
                     </div>
                     
                     <div class="form-group">
@@ -625,8 +680,10 @@
             const placaInput = document.getElementById('placa');
             const modeloInput = document.getElementById('modelo');
             const marcaInput = document.getElementById('marca');
+            const setorInput = document.getElementById('setor');
             const anoInput = document.getElementById('ano');
             const kmInput = document.getElementById('km_atual');
+            const tipoVeiculoInput = document.getElementById('tipo_veiculo');
             const statusInput = document.getElementById('status');
             
             // Placa
@@ -639,6 +696,9 @@
             // Marca
             valido = validarCampo(marcaInput, 'marcaError', 'Marca é obrigatória') && valido;
             
+            // Setor
+            valido = validarCampo(setorInput, 'setorError', 'Setor é obrigatório') && valido;
+            
             // Ano
             if (anoInput && (!anoInput.value || anoInput.value < 1990 || anoInput.value > 2025)) {
                 mostrarErro(anoInput, 'anoError', 'Ano deve estar entre 1990 e 2025');
@@ -649,6 +709,9 @@
             
             // KM Atual
             valido = validarCampo(kmInput, 'kmError', 'KM atual é obrigatório') && valido;
+            
+            // Tipo de Veículo
+            valido = validarCampo(tipoVeiculoInput, 'tipoVeiculoError', 'Tipo de veículo é obrigatório') && valido;
             
             // Status
             valido = validarCampo(statusInput, 'statusError', 'Status é obrigatório') && valido;
@@ -669,7 +732,7 @@
         // ============================================
         async function inicializarSupabase() {
             try {
-                console.log('🔌 Inicializando Supabase...');
+                console.log('🔗 Inicializando Supabase...');
                 
                 if (!window.supabase) {
                     throw new Error('Biblioteca Supabase não carregada');
@@ -704,7 +767,7 @@
         
         async function carregarVeiculos() {
             try {
-                console.log('📥 Carregando veículos...');
+                console.log('📋 Carregando veículos...');
                 
                 const { data, error } = await supabaseClient
                     .from(window.VEICULOS_CONFIG.tableName)
@@ -736,7 +799,7 @@
                 
                 document.getElementById('tabelaBody').innerHTML = `
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px; color: #dc3545;">
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #dc3545;">
                             <div style="font-size: 48px;">❌</div>
                             <div>Erro ao carregar veículos</div>
                             <button onclick="carregarVeiculos()" class="btn" style="margin-top: 15px; background: #1e40af; color: white;">
@@ -757,6 +820,23 @@
             const inativos = veiculosLista.filter(v => v.status === 'inativo').length;
             const manutencao = veiculosLista.filter(v => v.status === 'manutencao').length;
             
+            // Contar veículos por setor
+            const setores = {};
+            veiculosLista.forEach(v => {
+                const setor = v.setor || 'Não informado';
+                setores[setor] = (setores[setor] || 0) + 1;
+            });
+            
+            // Encontrar setor com mais veículos
+            let setorPrincipal = 'Nenhum';
+            let maxSetor = 0;
+            Object.keys(setores).forEach(setor => {
+                if (setores[setor] > maxSetor) {
+                    maxSetor = setores[setor];
+                    setorPrincipal = setor;
+                }
+            });
+            
             let kmTotal = 0;
             veiculosLista.forEach(v => {
                 kmTotal += parseFloat(v.km_atual) || 0;
@@ -771,9 +851,13 @@
                     <div class="stat-numero">${ativos}</div>
                     <div class="stat-label">Ativos</div>
                 </div>
-                <div class="stat-card" onclick="filtrarPorStatus('inativo')">
-                    <div class="stat-numero">${inativos}</div>
-                    <div class="stat-label">Inativos</div>
+                <div class="stat-card" onclick="filtrarPorSetor('${setorPrincipal}')">
+                    <div class="stat-numero">${maxSetor}</div>
+                    <div class="stat-label">${setorPrincipal}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-numero">${manutencao}</div>
+                    <div class="stat-label">Manutenção</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-numero">${kmTotal.toLocaleString('pt-BR')}</div>
@@ -794,17 +878,29 @@
             mostrarNotificacao(`Mostrando veículos ${status}`, 'info');
         }
         
+        function filtrarPorSetor(setor) {
+            if (!setor || setor === 'Nenhum') {
+                renderizarTabela();
+                mostrarNotificacao('Mostrando todos os setores', 'info');
+                return;
+            }
+            
+            const filtrados = veiculosLista.filter(v => (v.setor || 'Não informado') === setor);
+            renderizarTabela(filtrados);
+            mostrarNotificacao(`Mostrando veículos do setor ${setor}`, 'info');
+        }
+        
         function renderizarTabela(dados = veiculosLista) {
             const tbody = document.getElementById('tabelaBody');
             
             if (!dados || dados.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #666;">
                             <div style="font-size: 48px;">🚗</div>
                             <div>Nenhum veículo cadastrado</div>
                             <button onclick="abrirModalNovo()" class="btn" style="margin-top: 15px; background: #059669; color: white;">
-                                ＋ Adicionar Primeiro Veículo
+                                ➕ Adicionar Primeiro Veículo
                             </button>
                         </td>
                     </tr>
@@ -841,6 +937,10 @@
                         badgeText = status.toUpperCase();
                 }
                 
+                // Badge para setor
+                const setor = veiculo.setor || 'Não informado';
+                const setorBadgeClass = setor === 'Frota' ? 'badge-info' : 'badge';
+                
                 let ultimaManutencao = 'Nunca';
                 if (veiculo.ultima_manutencao) {
                     try {
@@ -852,18 +952,23 @@
                 
                 // Escapar aspas para JavaScript
                 const placaEscapada = (veiculo.placa || '').replace(/'/g, "\\'");
-                const nomeEscapado = (veiculo.placa || '').replace(/'/g, "\\'");
+                const setorEscapado = (setor || '').replace(/'/g, "\\'");
                 
                 html += `
                     <tr>
                         <td><strong>${veiculo.placa || 'N/D'}</strong></td>
                         <td>${veiculo.modelo || 'N/D'}</td>
+                        <td>
+                            <span class="badge ${setorBadgeClass}" onclick="filtrarPorSetor('${setorEscapado}')" style="cursor: pointer;">
+                                ${setor}
+                            </span>
+                        </td>
                         <td>${veiculo.ano || 'N/D'}</td>
-                        <td>${veiculo.cor || 'N/D'}</td>
                         <td>
                             <span class="status-indicator ${indicatorClass}"></span>
                             <span class="badge ${badgeClass}">${badgeText}</span>
                         </td>
+                        <td>${(veiculo.km_atual || 0).toLocaleString('pt-BR')} km</td>
                         <td>${ultimaManutencao}</td>
                         <td>
                             <button onclick="editarVeiculo('${veiculo.id}')" class="btn btn-info" style="padding: 6px 12px; margin-right: 5px;">
@@ -901,10 +1006,19 @@
             const anoInput = document.getElementById('ano');
             const kmInput = document.getElementById('km_atual');
             const statusInput = document.getElementById('status');
+            const setorInput = document.getElementById('setor');
+            const tipoVeiculoInput = document.getElementById('tipo_veiculo');
             
             if (anoInput) anoInput.value = new Date().getFullYear();
             if (kmInput) kmInput.value = '0';
             if (statusInput) statusInput.value = 'ativo';
+            if (setorInput) setorInput.value = 'Frota';
+            if (tipoVeiculoInput) tipoVeiculoInput.value = 'Carro';
+            
+            // Configurar data atual para última manutenção
+            const hoje = new Date().toISOString().split('T')[0];
+            const ultimaManutencaoInput = document.getElementById('ultima_manutencao');
+            if (ultimaManutencaoInput) ultimaManutencaoInput.value = hoje;
             
             // Mostrar modal
             document.getElementById('modalVeiculo').style.display = 'flex';
@@ -935,12 +1049,26 @@
                 document.getElementById('placa').value = data.placa || '';
                 document.getElementById('modelo').value = data.modelo || '';
                 document.getElementById('marca').value = data.marca || '';
+                document.getElementById('setor').value = data.setor || 'Frota';
                 document.getElementById('ano').value = data.ano || '';
                 document.getElementById('cor').value = data.cor || '';
                 document.getElementById('km_atual').value = data.km_atual || 0;
+                document.getElementById('tipo_veiculo').value = data.tipo_veiculo || 'Carro';
                 document.getElementById('tipo_combustivel').value = data.tipo_combustivel || '';
                 document.getElementById('status').value = data.status || 'ativo';
                 document.getElementById('observacoes').value = data.observacoes || '';
+                
+                // Formatar data da última manutenção
+                if (data.ultima_manutencao) {
+                    try {
+                        const dataManutencao = new Date(data.ultima_manutencao);
+                        document.getElementById('ultima_manutencao').value = dataManutencao.toISOString().split('T')[0];
+                    } catch(e) {
+                        document.getElementById('ultima_manutencao').value = '';
+                    }
+                } else {
+                    document.getElementById('ultima_manutencao').value = '';
+                }
                 
                 document.getElementById('modalVeiculo').style.display = 'flex';
                 
@@ -971,15 +1099,18 @@
                 const placa = document.getElementById('placa').value.trim();
                 const modelo = document.getElementById('modelo').value.trim();
                 const marca = document.getElementById('marca').value.trim();
+                const setor = document.getElementById('setor').value;
                 const ano = document.getElementById('ano').value;
                 const cor = document.getElementById('cor').value.trim();
                 const km_atual = document.getElementById('km_atual').value;
+                const tipo_veiculo = document.getElementById('tipo_veiculo').value;
                 const tipo_combustivel = document.getElementById('tipo_combustivel').value;
                 const status = document.getElementById('status').value;
+                const ultima_manutencao = document.getElementById('ultima_manutencao').value;
                 const observacoes = document.getElementById('observacoes').value.trim();
                 
                 // Validação básica
-                if (!placa || !modelo || !marca || !ano || !km_atual || !status) {
+                if (!placa || !modelo || !marca || !setor || !ano || !km_atual || !tipo_veiculo || !status) {
                     mostrarNotificacao('⚠️ Preencha todos os campos obrigatórios', 'error');
                     return;
                 }
@@ -988,14 +1119,21 @@
                     placa: placa.toUpperCase(),
                     modelo: modelo,
                     marca: marca,
+                    setor: setor,
                     ano: parseInt(ano) || null,
                     cor: cor || null,
                     km_atual: parseFloat(km_atual) || 0,
+                    tipo_veiculo: tipo_veiculo,
                     tipo_combustivel: tipo_combustivel || null,
                     status: status,
                     observacoes: observacoes || null,
                     data_atualizacao: new Date().toISOString()
                 };
+                
+                // Adicionar data de última manutenção se informada
+                if (ultima_manutencao) {
+                    dados.ultima_manutencao = ultima_manutencao;
+                }
                 
                 console.log('💾 Salvando veículo:', dados);
                 
@@ -1011,7 +1149,6 @@
                     // Inserir novo
                     dados.data_criacao = new Date().toISOString();
                     dados.nome = modelo;
-                    dados.tipo_veiculo = 'Automóvel';
                     
                     resultado = await supabaseClient
                         .from(window.VEICULOS_CONFIG.tableName)
@@ -1157,7 +1294,7 @@
         
         // Também chamar diretamente para garantir
         window.addEventListener('load', function() {
-            console.log('🔄 Página totalmente carregada');
+            console.log('🌐 Página totalmente carregada');
         });
         
         // Expor funções globalmente para debugging
