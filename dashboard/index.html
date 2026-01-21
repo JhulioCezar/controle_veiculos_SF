@@ -2453,6 +2453,246 @@ function gerenciarVeiculos() {
         }
         
         // ========== FUNÇÕES PRINCIPAIS DO DASHBOARD ==========
+        // ========== FUNÇÃO PARA CALCULAR ESTATÍSTICAS DE DADOS FILTRADOS ==========
+        function calcularEstatisticas(dados) {
+            if (!dados || dados.length === 0) {
+                return {
+                    total: 0,
+                    inicios: 0,
+                    finais: 0,
+                    colaboradores: 0,
+                    veiculos: 0,
+                    totalKM: 0,
+                    mediaKM: 0,
+                    kmPorVeiculo: {}
+                };
+            }
+            
+            let total = dados.length;
+            let inicios = 0, finais = 0;
+            let colaboradoresSet = new Set();
+            let veiculosSet = new Set();
+            let placasSet = new Set();
+            
+            // 🔥 CORREÇÃO: Agrupar KM por veículo
+            const kmPorVeiculo = {};
+            
+            dados.forEach(item => {
+                if (item.tipo_rota === 'INÍCIO') inicios++;
+                if (item.tipo_rota === 'FINAL') finais++;
+                if (item.colaborador) colaboradoresSet.add(item.colaborador);
+                if (item.veiculo) veiculosSet.add(item.veiculo);
+                if (item.placa) placasSet.add(item.placa);
+                
+                // 🔥 Coletar KMs por veículo
+                if (item.placa && item.km) {
+                    if (!kmPorVeiculo[item.placa]) {
+                        kmPorVeiculo[item.placa] = {
+                            kmMin: item.km,
+                            kmMax: item.km,
+                            veiculo: item.veiculo
+                        };
+                    } else {
+                        // Atualizar mínimo e máximo
+                        if (item.km < kmPorVeiculo[item.placa].kmMin) {
+                            kmPorVeiculo[item.placa].kmMin = item.km;
+                        }
+                        if (item.km > kmPorVeiculo[item.placa].kmMax) {
+                            kmPorVeiculo[item.placa].kmMax = item.km;
+                        }
+                    }
+                }
+            });
+            
+            // 🔥 CALCULAR KM TOTAL PERCORRIDO CORRETAMENTE
+            let totalKM = 0;
+            Object.values(kmPorVeiculo).forEach(veiculo => {
+                const kmPercorrido = veiculo.kmMax - veiculo.kmMin;
+                if (kmPercorrido > 0) {
+                    totalKM += kmPercorrido;
+                }
+            });
+            
+            const mediaKM = total > 0 ? (totalKM / total).toFixed(0) : 0;
+            
+            return {
+                total,
+                inicios,
+                finais,
+                colaboradores: colaboradoresSet.size,
+                veiculos: placasSet.size,
+                totalKM,
+                mediaKM,
+                kmPorVeiculo // Para debug/verificação
+            };
+        }
+        
+        // ========== ATUALIZAR ESTATÍSTICAS COM DADOS FILTRADOS ==========
+        function atualizarEstatisticasFiltradas(dadosFiltrados) {
+            // Calcular estatísticas dos dados filtrados
+            const estatisticas = calcularEstatisticas(dadosFiltrados);
+            
+            // Atualizar o contador de registros
+            document.getElementById('contadorRegistros').textContent = 
+                `${estatisticas.total} registros encontrados`;
+            
+            // 🔥 NOVO: Atualizar os cards de estatísticas
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card" onclick="limparFiltros()" title="Clique para limpar filtros">
+                    <div class="stat-numero">${estatisticas.total}</div>
+                    <div class="stat-label">Registros Filtrados</div>
+                    <div style="font-size: 10px; color: #666; margin-top: 5px;">👆 Clique para limpar</div>
+                </div>
+                <div class="stat-card" onclick="filtrarPorTipo('INÍCIO')" title="Clique para filtrar inícios">
+                    <div class="stat-numero">${estatisticas.inicios}</div>
+                    <div class="stat-label">Inícios de Rota</div>
+                </div>
+                <div class="stat-card" onclick="filtrarPorTipo('FINAL')" title="Clique para filtrar finais">
+                    <div class="stat-numero">${estatisticas.finais}</div>
+                    <div class="stat-label">Finais de Rota</div>
+                </div>
+                <div class="stat-card" onclick="filtrarPorColaborador('')" title="Clique para ver colaboradores">
+                    <div class="stat-numero">${estatisticas.colaboradores}</div>
+                    <div class="stat-label">Colaboradores Filtrados</div>
+                </div>
+                <div class="stat-card" onclick="filtrarPorVeiculo('')" title="Clique para ver veículos">
+                    <div class="stat-numero">${estatisticas.veiculos}</div>
+                    <div class="stat-label">Veículos Filtrados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-numero">${estatisticas.totalKM.toLocaleString()}</div>
+                    <div class="stat-label">KM Total (Filtrado)</div>
+                    <div style="font-size: 10px; color: #666; margin-top: 5px;">
+                        ${Object.keys(estatisticas.kmPorVeiculo || {}).length} veículo(s)
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-numero">${estatisticas.mediaKM}</div>
+                    <div class="stat-label">Média KM/Registro</div>
+                </div>
+            `;
+        }
+        
+        // ========== APLICAR FILTROS (VERSÃO ATUALIZADA) ==========
+        function aplicarFiltros() {
+            const placa = document.getElementById('filtroPlaca').value.toUpperCase();
+            const colaborador = document.getElementById('filtroColaborador').value;
+            const dataInicio = document.getElementById('filtroDataInicio').value;
+            const dataFim = document.getElementById('filtroDataFim').value;
+            const tipoRota = document.getElementById('filtroTipoRota').value;
+            
+            let dadosFiltrados = [...checklistsData];
+            
+            // Filtro por placa
+            if (placa) {
+                dadosFiltrados = dadosFiltrados.filter(item => 
+                    item.placa && item.placa.toUpperCase().includes(placa)
+                );
+            }
+            
+            // Filtro por colaborador
+            if (colaborador) {
+                dadosFiltrados = dadosFiltrados.filter(item => 
+                    item.colaborador === colaborador
+                );
+            }
+            
+            // Filtro por data (considerando formato brasileiro)
+            if (dataInicio || dataFim) {
+                dadosFiltrados = dadosFiltrados.filter(item => {
+                    const dataItem = formatarDataBrasileira(item.data);
+                    const [dia, mes, ano] = dataItem.split('/');
+                    const itemDate = new Date(`${ano}-${mes}-${dia}`);
+                    
+                    let inicioOk = true;
+                    let fimOk = true;
+                    
+                    if (dataInicio) {
+                        const inicioDate = new Date(dataInicio);
+                        inicioOk = itemDate >= inicioDate;
+                    }
+                    
+                    if (dataFim) {
+                        const fimDate = new Date(dataFim);
+                        fimOk = itemDate <= fimDate;
+                    }
+                    
+                    return inicioOk && fimOk;
+                });
+            }
+            
+            // Filtro por tipo de rota
+            if (tipoRota) {
+                dadosFiltrados = dadosFiltrados.filter(item => 
+                    item.tipo_rota === tipoRota
+                );
+            }
+            
+            // 🔥 ATUALIZAR: Renderizar tabela filtrada
+            renderizarTabela(dadosFiltrados);
+            
+            // 🔥 NOVO: Atualizar estatísticas com dados filtrados
+            atualizarEstatisticasFiltradas(dadosFiltrados);
+            
+            // Mostrar notificação se houver filtros ativos
+            const filtrosAtivos = [placa, colaborador, dataInicio, dataFim, tipoRota].filter(f => f).length;
+            if (filtrosAtivos > 0) {
+                mostrarNotificacao(`✅ ${dadosFiltrados.length} registros filtrados`, 'success');
+            }
+        }
+        
+        // ========== LIMPAR FILTROS (VERSÃO ATUALIZADA) ==========
+        function limparFiltros() {
+            document.getElementById('filtroPlaca').value = '';
+            document.getElementById('filtroColaborador').value = '';
+            document.getElementById('filtroDataInicio').value = '';
+            document.getElementById('filtroDataFim').value = '';
+            document.getElementById('filtroTipoRota').value = '';
+            
+            // Restaurar tabela com todos os dados
+            renderizarTabela(checklistsData);
+            
+            // 🔥 NOVO: Restaurar estatísticas globais
+            const estatisticas = calcularEstatisticas(checklistsData);
+            
+            document.getElementById('contadorRegistros').textContent = 
+                `${estatisticas.total} registros encontrados`;
+            
+            // Restaurar cards de estatísticas globais
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card" onclick="filtrarPorTipo('')" title="Clique para ver todos">
+                    <div class="stat-numero">${estatisticas.total}</div>
+                    <div class="stat-label">Total de Registros</div>
+                </div>
+                <div class="stat-card" onclick="filtrarPorTipo('INÍCIO')" title="Clique para filtrar inícios">
+                    <div class="stat-numero">${estatisticas.inicios}</div>
+                    <div class="stat-label">Inícios de Rota</div>
+                </div>
+                <div class="stat-card" onclick="filtrarPorTipo('FINAL')" title="Clique para filtrar finais">
+                    <div class="stat-numero">${estatisticas.finais}</div>
+                    <div class="stat-label">Finais de Rota</div>
+                </div>
+                <div class="stat-card" onclick="filtrarPorColaborador('')" title="Clique para ver colaboradores">
+                    <div class="stat-numero">${estatisticas.colaboradores}</div>
+                    <div class="stat-label">Colaboradores</div>
+                </div>
+                <div class="stat-card" onclick="filtrarPorVeiculo('')" title="Clique para ver veículos">
+                    <div class="stat-numero">${estatisticas.veiculos}</div>
+                    <div class="stat-label">Veículos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-numero">${estatisticas.totalKM.toLocaleString()}</div>
+                    <div class="stat-label">KM Total Percorrido</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-numero">${estatisticas.mediaKM}</div>
+                    <div class="stat-label">Média KM/Registro</div>
+                </div>
+            `;
+            
+            mostrarNotificacao('✅ Filtros limpos - Estatísticas restauradas', 'success');
+        }
+        
         // ========== FUNÇÃO PARA CARREGAR CHECKLISTS ==========
         async function carregarChecklists() {
             if (!supabaseClient) {
@@ -2495,6 +2735,40 @@ function gerenciarVeiculos() {
                 
                 // Atualizar filtro de colaboradores
                 atualizarFiltroColaboradores();
+                
+                // 🔥 ATUALIZAR: Carregar estatísticas iniciais
+                const estatisticas = calcularEstatisticas(checklistsData);
+                
+                document.getElementById('stats').innerHTML = `
+                    <div class="stat-card" onclick="filtrarPorTipo('')" title="Clique para ver todos">
+                        <div class="stat-numero">${estatisticas.total}</div>
+                        <div class="stat-label">Total de Registros</div>
+                    </div>
+                    <div class="stat-card" onclick="filtrarPorTipo('INÍCIO')" title="Clique para filtrar inícios">
+                        <div class="stat-numero">${estatisticas.inicios}</div>
+                        <div class="stat-label">Inícios de Rota</div>
+                    </div>
+                    <div class="stat-card" onclick="filtrarPorTipo('FINAL')" title="Clique para filtrar finais">
+                        <div class="stat-numero">${estatisticas.finais}</div>
+                        <div class="stat-label">Finais de Rota</div>
+                    </div>
+                    <div class="stat-card" onclick="filtrarPorColaborador('')" title="Clique para ver colaboradores">
+                        <div class="stat-numero">${estatisticas.colaboradores}</div>
+                        <div class="stat-label">Colaboradores</div>
+                    </div>
+                    <div class="stat-card" onclick="filtrarPorVeiculo('')" title="Clique para ver veículos">
+                        <div class="stat-numero">${estatisticas.veiculos}</div>
+                        <div class="stat-label">Veículos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-numero">${estatisticas.totalKM.toLocaleString()}</div>
+                        <div class="stat-label">KM Total Percorrido</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-numero">${estatisticas.mediaKM}</div>
+                        <div class="stat-label">Média KM/Registro</div>
+                    </div>
+                `;
                 
                 mostrarNotificacao(`✅ ${checklistsData.length} registros carregados`, 'success');
                 
@@ -2710,7 +2984,6 @@ function gerenciarVeiculos() {
                 
                 // Atualizar dados
                 await carregarChecklists();
-                await carregarEstatisticas();
                 
             } catch (error) {
                 console.error('❌ Erro ao excluir checklist:', error);
@@ -2736,88 +3009,7 @@ function gerenciarVeiculos() {
                 select.appendChild(option);
             });
         }
-
-        // ========== APLICAR FILTROS ==========
-        function aplicarFiltros() {
-            const placa = document.getElementById('filtroPlaca').value.toUpperCase();
-            const colaborador = document.getElementById('filtroColaborador').value;
-            const dataInicio = document.getElementById('filtroDataInicio').value;
-            const dataFim = document.getElementById('filtroDataFim').value;
-            const tipoRota = document.getElementById('filtroTipoRota').value;
-            
-            let dadosFiltrados = [...checklistsData];
-            
-            // Filtro por placa
-            if (placa) {
-                dadosFiltrados = dadosFiltrados.filter(item => 
-                    item.placa && item.placa.toUpperCase().includes(placa)
-                );
-            }
-            
-            // Filtro por colaborador
-            if (colaborador) {
-                dadosFiltrados = dadosFiltrados.filter(item => 
-                    item.colaborador === colaborador
-                );
-            }
-            
-            // Filtro por data (considerando formato brasileiro)
-            if (dataInicio || dataFim) {
-                dadosFiltrados = dadosFiltrados.filter(item => {
-                    const dataItem = formatarDataBrasileira(item.data);
-                    const [dia, mes, ano] = dataItem.split('/');
-                    const itemDate = new Date(`${ano}-${mes}-${dia}`);
-                    
-                    let inicioOk = true;
-                    let fimOk = true;
-                    
-                    if (dataInicio) {
-                        const inicioDate = new Date(dataInicio);
-                        inicioOk = itemDate >= inicioDate;
-                    }
-                    
-                    if (dataFim) {
-                        const fimDate = new Date(dataFim);
-                        fimOk = itemDate <= fimDate;
-                    }
-                    
-                    return inicioOk && fimOk;
-                });
-            }
-            
-            // Filtro por tipo de rota
-            if (tipoRota) {
-                dadosFiltrados = dadosFiltrados.filter(item => 
-                    item.tipo_rota === tipoRota
-                );
-            }
-            
-            // Renderizar tabela filtrada
-            renderizarTabela(dadosFiltrados);
-            
-            // Atualizar contador
-            document.getElementById('contadorRegistros').textContent = 
-                `${dadosFiltrados.length} registros encontrados`;
-            
-            // Mostrar notificação se houver filtros ativos
-            const filtrosAtivos = [placa, colaborador, dataInicio, dataFim, tipoRota].filter(f => f).length;
-            if (filtrosAtivos > 0) {
-                mostrarNotificacao(`✅ ${dadosFiltrados.length} registros filtrados`, 'success');
-            }
-        }
-
-        // ========== LIMPAR FILTROS ==========
-        function limparFiltros() {
-            document.getElementById('filtroPlaca').value = '';
-            document.getElementById('filtroColaborador').value = '';
-            document.getElementById('filtroDataInicio').value = '';
-            document.getElementById('filtroDataFim').value = '';
-            document.getElementById('filtroTipoRota').value = '';
-            
-            aplicarFiltros();
-            mostrarNotificacao('✅ Filtros limpos', 'success');
-        }
-
+        
         // ========== EXPORTAR DADOS ==========
         function exportarDados() {
             if (!checklistsData || checklistsData.length === 0) {
@@ -2902,126 +3094,11 @@ function gerenciarVeiculos() {
 
         // ========== ATUALIZAR DASHBOARD ==========
         function atualizarDashboard() {
-            carregarEstatisticas();
             carregarChecklists();
             mostrarNotificacao('✅ Dashboard atualizado!', 'success');
         }
 
         // ========== FUNÇÕES EXISTENTES (mantidas) ==========
-        async function carregarEstatisticas() {
-    if (!supabaseClient) {
-        console.warn('⚠️ Supabase não inicializado');
-        return;
-    }
-    
-    try {
-        console.log('📊 Carregando estatísticas...');
-        
-        const { data, error } = await supabaseClient
-            .from('checklists')
-            .select('*');
-        
-        if (error) throw error;
-        
-        const total = data ? data.length : 0;
-        let inicios = 0, finais = 0;
-        let colaboradores = new Set();
-        let veiculos = new Set();
-        let placas = new Set();
-        let totalKM = 0;
-        
-        if (data && data.length > 0) {
-            // 🔥 CORREÇÃO: Agrupar KM por veículo
-            const kmPorVeiculo = {};
-            
-            data.forEach(item => {
-                if (item.tipo_rota === 'INÍCIO') inicios++;
-                if (item.tipo_rota === 'FINAL') finais++;
-                if (item.colaborador) colaboradores.add(item.colaborador);
-                if (item.veiculo) veiculos.add(item.veiculo);
-                if (item.placa) placas.add(item.placa);
-                
-                // 🔥 CORREÇÃO: Coletar KMs por veículo
-                if (item.placa && item.km) {
-                    if (!kmPorVeiculo[item.placa]) {
-                        kmPorVeiculo[item.placa] = {
-                            kmMin: item.km,
-                            kmMax: item.km,
-                            veiculo: item.veiculo
-                        };
-                    } else {
-                        // Atualizar mínimo e máximo
-                        if (item.km < kmPorVeiculo[item.placa].kmMin) {
-                            kmPorVeiculo[item.placa].kmMin = item.km;
-                        }
-                        if (item.km > kmPorVeiculo[item.placa].kmMax) {
-                            kmPorVeiculo[item.placa].kmMax = item.km;
-                        }
-                    }
-                }
-            });
-            
-            // 🔥 CALCULAR KM TOTAL PERCORRIDO CORRETAMENTE
-            totalKM = 0;
-            Object.values(kmPorVeiculo).forEach(veiculo => {
-                const kmPercorrido = veiculo.kmMax - veiculo.kmMin;
-                if (kmPercorrido > 0) {
-                    totalKM += kmPercorrido;
-                }
-            });
-            
-            console.log('🔍 Detalhes do cálculo:', {
-                veiculos: Object.keys(kmPorVeiculo).length,
-                kmPorVeiculo,
-                totalKM
-            });
-        }
-        
-        const mediaKM = total > 0 ? (totalKM / total).toFixed(0) : 0;
-        
-        // Atualizar estatísticas
-        document.getElementById('stats').innerHTML = `
-            <div class="stat-card" onclick="filtrarPorTipo('')" title="Clique para ver todos">
-                <div class="stat-numero">${total}</div>
-                <div class="stat-label">Total de Registros</div>
-            </div>
-            <div class="stat-card" onclick="filtrarPorTipo('INÍCIO')" title="Clique para filtrar inícios">
-                <div class="stat-numero">${inicios}</div>
-                <div class="stat-label">Inícios de Rota</div>
-            </div>
-            <div class="stat-card" onclick="filtrarPorTipo('FINAL')" title="Clique para filtrar finais">
-                <div class="stat-numero">${finais}</div>
-                <div class="stat-label">Finais de Rota</div>
-            </div>
-            <div class="stat-card" onclick="filtrarPorColaborador('')" title="Clique para ver colaboradores">
-                <div class="stat-numero">${colaboradores.size}</div>
-                <div class="stat-label">Colaboradores</div>
-            </div>
-            <div class="stat-card" onclick="filtrarPorVeiculo('')" title="Clique para ver veículos">
-                <div class="stat-numero">${placas.size}</div>
-                <div class="stat-label">Veículos</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-numero">${totalKM.toLocaleString()}</div>
-                <div class="stat-label">KM Total Percorrido</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-numero">${mediaKM}</div>
-                <div class="stat-label">Média KM/Registro</div>
-            </div>
-        `;
-        
-    } catch (error) {
-        console.error('Erro ao carregar estatísticas:', error);
-        document.getElementById('stats').innerHTML = `
-            <div class="stat-card" style="grid-column: 1 / -1;">
-                <div style="color: #dc3545; font-size: 20px;">❌</div>
-                <div class="stat-label">Erro ao carregar estatísticas</div>
-            </div>
-        `;
-    }
-}
-        
         // Funções de filtro rápido pelos cards
         function filtrarPorTipo(tipo) {
             if (tipo) {
@@ -3032,6 +3109,16 @@ function gerenciarVeiculos() {
                 document.getElementById('filtroTipoRota').value = '';
                 aplicarFiltros();
             }
+        }
+        
+        function filtrarPorColaborador() {
+            // Esta função é apenas para manter compatibilidade
+            // A funcionalidade real está no filtro de colaboradores
+        }
+        
+        function filtrarPorVeiculo() {
+            // Esta função é apenas para manter compatibilidade
+            // A funcionalidade real está no filtro de placa
         }
         
         // Função para verificar KM inconsistente
@@ -3130,11 +3217,10 @@ function gerenciarVeiculos() {
             
             if (conectado) {
                 // Carregar dados
-                await carregarEstatisticas();
                 await carregarChecklists();
                 
                 // Configurar atualização automática a cada 30 segundos
-                setInterval(carregarEstatisticas, 30000);
+                setInterval(carregarChecklists, 30000);
                 
                 // Configurar eventos
                 document.addEventListener('keydown', (e) => {
