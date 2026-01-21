@@ -2909,82 +2909,118 @@ function gerenciarVeiculos() {
 
         // ========== FUNÇÕES EXISTENTES (mantidas) ==========
         async function carregarEstatisticas() {
-            if (!supabaseClient) {
-                console.warn('⚠️ Supabase não inicializado');
-                return;
-            }
+    if (!supabaseClient) {
+        console.warn('⚠️ Supabase não inicializado');
+        return;
+    }
+    
+    try {
+        console.log('📊 Carregando estatísticas...');
+        
+        const { data, error } = await supabaseClient
+            .from('checklists')
+            .select('*');
+        
+        if (error) throw error;
+        
+        const total = data ? data.length : 0;
+        let inicios = 0, finais = 0;
+        let colaboradores = new Set();
+        let veiculos = new Set();
+        let placas = new Set();
+        let totalKM = 0;
+        
+        if (data && data.length > 0) {
+            // 🔥 CORREÇÃO: Agrupar KM por veículo
+            const kmPorVeiculo = {};
             
-            try {
-                console.log('📊 Carregando estatísticas...');
+            data.forEach(item => {
+                if (item.tipo_rota === 'INÍCIO') inicios++;
+                if (item.tipo_rota === 'FINAL') finais++;
+                if (item.colaborador) colaboradores.add(item.colaborador);
+                if (item.veiculo) veiculos.add(item.veiculo);
+                if (item.placa) placas.add(item.placa);
                 
-                const { data, error } = await supabaseClient
-                    .from('checklists')
-                    .select('*');
-                
-                if (error) throw error;
-                
-                const total = data ? data.length : 0;
-                let inicios = 0, finais = 0;
-                let colaboradores = new Set();
-                let veiculos = new Set();
-                let placas = new Set();
-                let totalKM = 0;
-                
-                if (data && data.length > 0) {
-                    data.forEach(item => {
-                        if (item.tipo_rota === 'INÍCIO') inicios++;
-                        if (item.tipo_rota === 'FINAL') finais++;
-                        if (item.colaborador) colaboradores.add(item.colaborador);
-                        if (item.veiculo) veiculos.add(item.veiculo);
-                        if (item.placa) placas.add(item.placa);
-                        totalKM += (item.km || 0);
-                    });
+                // 🔥 CORREÇÃO: Coletar KMs por veículo
+                if (item.placa && item.km) {
+                    if (!kmPorVeiculo[item.placa]) {
+                        kmPorVeiculo[item.placa] = {
+                            kmMin: item.km,
+                            kmMax: item.km,
+                            veiculo: item.veiculo
+                        };
+                    } else {
+                        // Atualizar mínimo e máximo
+                        if (item.km < kmPorVeiculo[item.placa].kmMin) {
+                            kmPorVeiculo[item.placa].kmMin = item.km;
+                        }
+                        if (item.km > kmPorVeiculo[item.placa].kmMax) {
+                            kmPorVeiculo[item.placa].kmMax = item.km;
+                        }
+                    }
                 }
-                
-                const mediaKM = total > 0 ? (totalKM / total).toFixed(0) : 0;
-                
-                // Atualizar estatísticas
-                document.getElementById('stats').innerHTML = `
-                    <div class="stat-card" onclick="filtrarPorTipo('')" title="Clique para ver todos">
-                        <div class="stat-numero">${total}</div>
-                        <div class="stat-label">Total de Registros</div>
-                    </div>
-                    <div class="stat-card" onclick="filtrarPorTipo('INÍCIO')" title="Clique para filtrar inícios">
-                        <div class="stat-numero">${inicios}</div>
-                        <div class="stat-label">Inícios de Rota</div>
-                    </div>
-                    <div class="stat-card" onclick="filtrarPorTipo('FINAL')" title="Clique para filtrar finais">
-                        <div class="stat-numero">${finais}</div>
-                        <div class="stat-label">Finais de Rota</div>
-                    </div>
-                    <div class="stat-card" onclick="filtrarPorColaborador('')" title="Clique para ver colaboradores">
-                        <div class="stat-numero">${colaboradores.size}</div>
-                        <div class="stat-label">Colaboradores</div>
-                    </div>
-                    <div class="stat-card" onclick="filtrarPorVeiculo('')" title="Clique para ver veículos">
-                        <div class="stat-numero">${placas.size}</div>
-                        <div class="stat-label">Veículos</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-numero">${totalKM.toLocaleString()}</div>
-                        <div class="stat-label">KM Total Percorrido</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-numero">${mediaKM}</div>
-                        <div class="stat-label">Média KM/Registro</div>
-                    </div>
-                `;
-                
-            } catch (error) {
-                console.error('Erro ao carregar estatísticas:', error);
-                document.getElementById('stats').innerHTML = `
-                    <div class="stat-card" style="grid-column: 1 / -1;">
-                        <div style="color: #dc3545; font-size: 20px;">❌</div>
-                        <div class="stat-label">Erro ao carregar estatísticas</div>
-                    </div>
-                `;
-            }
+            });
+            
+            // 🔥 CALCULAR KM TOTAL PERCORRIDO CORRETAMENTE
+            totalKM = 0;
+            Object.values(kmPorVeiculo).forEach(veiculo => {
+                const kmPercorrido = veiculo.kmMax - veiculo.kmMin;
+                if (kmPercorrido > 0) {
+                    totalKM += kmPercorrido;
+                }
+            });
+            
+            console.log('🔍 Detalhes do cálculo:', {
+                veiculos: Object.keys(kmPorVeiculo).length,
+                kmPorVeiculo,
+                totalKM
+            });
         }
+        
+        const mediaKM = total > 0 ? (totalKM / total).toFixed(0) : 0;
+        
+        // Atualizar estatísticas
+        document.getElementById('stats').innerHTML = `
+            <div class="stat-card" onclick="filtrarPorTipo('')" title="Clique para ver todos">
+                <div class="stat-numero">${total}</div>
+                <div class="stat-label">Total de Registros</div>
+            </div>
+            <div class="stat-card" onclick="filtrarPorTipo('INÍCIO')" title="Clique para filtrar inícios">
+                <div class="stat-numero">${inicios}</div>
+                <div class="stat-label">Inícios de Rota</div>
+            </div>
+            <div class="stat-card" onclick="filtrarPorTipo('FINAL')" title="Clique para filtrar finais">
+                <div class="stat-numero">${finais}</div>
+                <div class="stat-label">Finais de Rota</div>
+            </div>
+            <div class="stat-card" onclick="filtrarPorColaborador('')" title="Clique para ver colaboradores">
+                <div class="stat-numero">${colaboradores.size}</div>
+                <div class="stat-label">Colaboradores</div>
+            </div>
+            <div class="stat-card" onclick="filtrarPorVeiculo('')" title="Clique para ver veículos">
+                <div class="stat-numero">${placas.size}</div>
+                <div class="stat-label">Veículos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-numero">${totalKM.toLocaleString()}</div>
+                <div class="stat-label">KM Total Percorrido</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-numero">${mediaKM}</div>
+                <div class="stat-label">Média KM/Registro</div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Erro ao carregar estatísticas:', error);
+        document.getElementById('stats').innerHTML = `
+            <div class="stat-card" style="grid-column: 1 / -1;">
+                <div style="color: #dc3545; font-size: 20px;">❌</div>
+                <div class="stat-label">Erro ao carregar estatísticas</div>
+            </div>
+        `;
+    }
+}
         
         // Funções de filtro rápido pelos cards
         function filtrarPorTipo(tipo) {
